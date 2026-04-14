@@ -1,0 +1,6 @@
+twilio
+python-dotenv
+google-genai
+yt-dlp
+flask
+flask-cors

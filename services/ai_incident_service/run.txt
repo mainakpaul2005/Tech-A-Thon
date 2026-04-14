@@ -1,0 +1,9 @@
+python incident_agent.py --video "https://www.youtube.com/watch?v=YF_DzoTDO-0&list=PPSV" --location "103 Dum Dum Road, Kolkata" --> Run the code with online video_URL(road accident)
+
+
+
+python incident_agent.py --video "C:\Users\Annasha\Downloads\video_20260405_005822.mp4" --location "123 Main Street" --> Run the code with local video
+
+
+python incident_agent.py --video "https://youtu.be/GmnQyxXFC20
+" --location "103 Dum Dum Road, Kolkata" --> Run the code with online video_URL(antisocial)
