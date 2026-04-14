@@ -8,7 +8,7 @@ NexaCity is a comprehensive smart city management ecosystem designed to optimize
 - **Cross-Platform Dashboards**: Sleek, responsive interfaces for both Web (Vite/React) and Mobile (React Native/Expo).
 - **Secure Authentication**: Robust role-based access control (RBAC) powered by Firebase.
 - **IoT & Edge Integration**: Support for physical hardware (ESP8266) and simulated data with 5G/4G fallback logic.
-- **AI Autonomous Incident Detection**: Real-time video analysis via Gemini Vision API to detect accidents or anti-social activities, with automated Twilio emergency calling.
+- **AI Autonomous Incident Detection**: Real-time video analysis via Gemini Vision API to detect accidents or anti-social activities. It utilizes automated Twilio emergency calling with (future) dynamic location-aware dispatching based on regional authorities.
 - **Real-time Analytics**: Live weather integration and sensor data visualization via WebSockets.
 
 ## 📁 Project Structure
@@ -76,6 +76,9 @@ To apply changes from the root `.env` to all sub-modules:
 node scripts/sync-env.js
 ```
 The AI Python service automatically checks the root `.env` if a local one is not present.
+
+> [!NOTE]
+> Emergency contacts (Ambulance/Police) are currently configured statically in `.env`. Future versions will implement a dynamic lookup service that fetches local authority numbers based on GPS/locality input.
 
 ## 📄 Documentation
 - [Implementation Plan](Plan.md)

@@ -24,6 +24,17 @@ POLICE_NUMBER = os.getenv("POLICE_PHONE_NUMBER", os.getenv("TO_PHONE_NUMBER"))
 # Setup Gemini Client
 api_key = os.getenv("GEMINI_API_KEY")
 
+def get_emergency_numbers_for_location(location):
+    """
+    TODO: Integrate with a Real-time GIS or Directory API to fetch 
+    dynamic emergency numbers based on the detected locality.
+    Currently falls back to static .env configurations.
+    """
+    return {
+        "AMBULANCE": os.getenv("AMBULANCE_PHONE_NUMBER", os.getenv("TO_PHONE_NUMBER")),
+        "POLICE": os.getenv("POLICE_PHONE_NUMBER", os.getenv("TO_PHONE_NUMBER"))
+    }
+
 def download_youtube_video(url):
     print(f"Downloading video from web: {url}")
     # Always downloads as mp4 and overrides the file
@@ -148,17 +159,18 @@ def main():
             return
 
     incident_type = analyze_video(video_path)
+    contacts = get_emergency_numbers_for_location(args.location)
 
     # Cleanup downloaded video to save space
     if is_web_url and os.path.exists(video_path):
         os.remove(video_path)
 
     if incident_type == 'ROAD_ACCIDENT':
-        print("Action: Triggering Ambulance/Hospital Booking...")
-        make_emergency_call(incident_type, args.location, AMBULANCE_NUMBER)
+        print(f"Action: Triggering Ambulance/Hospital Booking for {args.location}...")
+        make_emergency_call(incident_type, args.location, contacts["AMBULANCE"])
     elif incident_type == 'ANTI_SOCIAL':
-        print("Action: Triggering Police Dispatch...")
-        make_emergency_call(incident_type, args.location, POLICE_NUMBER)
+        print(f"Action: Triggering Police Dispatch for {args.location}...")
+        make_emergency_call(incident_type, args.location, contacts["POLICE"])
     elif incident_type:
         print(f"Classification was {incident_type}. No emergency action needed.")
 

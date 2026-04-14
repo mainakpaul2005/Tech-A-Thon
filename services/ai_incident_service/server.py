@@ -35,6 +35,7 @@ def analyze():
             final_video_path = incident_agent.download_youtube_video(video_path)
         
         incident_type = incident_agent.analyze_video(final_video_path)
+        contacts = incident_agent.get_emergency_numbers_for_location(location)
         
         # Cleanup
         if is_web_url and os.path.exists(final_video_path):
@@ -42,9 +43,9 @@ def analyze():
             
         # Trigger call if emergency
         if incident_type == 'ROAD_ACCIDENT':
-            incident_agent.make_emergency_call(incident_type, location, incident_agent.AMBULANCE_NUMBER)
+            incident_agent.make_emergency_call(incident_type, location, contacts["AMBULANCE"])
         elif incident_type == 'ANTI_SOCIAL':
-            incident_agent.make_emergency_call(incident_type, location, incident_agent.POLICE_NUMBER)
+            incident_agent.make_emergency_call(incident_type, location, contacts["POLICE"])
             
         return jsonify({
             "status": "success",
