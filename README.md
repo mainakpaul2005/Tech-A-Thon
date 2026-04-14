@@ -67,6 +67,16 @@ NexaCity is a comprehensive smart city management ecosystem designed to optimize
    npx expo start
    ```
 
+## ⚙️ Configuration
+
+A global `.env` file is maintained at the project root. This file contains shared keys for Firebase, Gemini, and Twilio.
+
+To apply changes from the root `.env` to all sub-modules:
+```bash
+node scripts/sync-env.js
+```
+The AI Python service automatically checks the root `.env` if a local one is not present.
+
 ## 📄 Documentation
 - [Implementation Plan](Plan.md)
 - [Hardware Specifications](hardware.md)

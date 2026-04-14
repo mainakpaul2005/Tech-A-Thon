@@ -6,7 +6,11 @@ from twilio.rest import Client
 from dotenv import load_dotenv
 from google import genai
 
-load_dotenv()
+# Look for .env in current directory or project root
+load_dotenv() # checks current dir
+if not os.getenv("GEMINI_API_KEY"):
+    # Try project root
+    load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 # Setup Twilio Client
 account_sid = os.getenv("TWILIO_ACCOUNT_SID")
