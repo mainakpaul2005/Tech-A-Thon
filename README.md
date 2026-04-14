@@ -8,6 +8,7 @@ NexaCity is a comprehensive smart city management ecosystem designed to optimize
 - **Cross-Platform Dashboards**: Sleek, responsive interfaces for both Web (Vite/React) and Mobile (React Native/Expo).
 - **Secure Authentication**: Robust role-based access control (RBAC) powered by Firebase.
 - **IoT & Edge Integration**: Support for physical hardware (ESP8266) and simulated data with 5G/4G fallback logic.
+- **AI Autonomous Incident Detection**: Real-time video analysis via Gemini Vision API to detect accidents or anti-social activities, with automated Twilio emergency calling.
 - **Real-time Analytics**: Live weather integration and sensor data visualization via WebSockets.
 
 ## 📁 Project Structure
@@ -17,6 +18,8 @@ NexaCity is a comprehensive smart city management ecosystem designed to optimize
 ├── mobile/          # React Native mobile application (Expo)
 ├── hardware/        # ESP8266 firmware and sensor configurations
 ├── tests/           # End-to-end pipeline validation scripts
+├── services/        # Back-end microservices
+│   └── ai_incident_service/  # AI vision analysis agent (Gemini + Twilio)
 └── docs/            # Hardware specs, scalability plans, and design logs
 ```
 
@@ -25,6 +28,7 @@ NexaCity is a comprehensive smart city management ecosystem designed to optimize
 - **Frontend**: React, Vite, CSS3 (Glassmorphism), Lucide Icons
 - **Mobile**: React Native, Expo, Firebase Auth
 - **Backend/IoT**: Node.js (Microservices), MQTT, WebSockets, Firebase
+- **AI/Vision**: Python, Gemini Vision API, Twilio Voice API, yt-dlp
 - **Sensors**: Ultrasonic (HC-SR04), Motion (PIR), Weather API
 
 ## 🚦 Getting Started
@@ -49,9 +53,16 @@ NexaCity is a comprehensive smart city management ecosystem designed to optimize
    npm run dev
    ```
 
-3. **Mobile Setup**:
+3. **AI Service Setup**:
    ```bash
-   cd ../mobile
+   cd ../services/ai_incident_service
+   pip install -r requirements.txt
+   python server.py
+   ```
+
+4. **Mobile Setup**:
+   ```bash
+   cd ../../mobile
    npm install
    npx expo start
    ```

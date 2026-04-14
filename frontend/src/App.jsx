@@ -46,6 +46,7 @@ import {
   CartesianGrid,
   Legend,
 } from 'recharts';
+import AIIncidentAnalysis from './AIIncidentAnalysis';
 
 // ═══════════════════════════════════════════════════
 //  SIMULATED REAL-TIME DATA ENGINE
@@ -954,7 +955,7 @@ function App() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'analytics' | 'traffic'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'analytics' | 'traffic' | 'ai'
   const [networkMode, setNetworkMode] = useState('5G');
 
   useEffect(() => {
@@ -1129,17 +1130,31 @@ function App() {
               Analytics
             </button>
             {role === 'admin' && (
-              <button 
-                onClick={() => setActiveTab('traffic')}
-                style={{ 
-                  padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                  background: activeTab === 'traffic' ? '#f87171' : 'transparent',
-                  color: activeTab === 'traffic' ? '#fff' : 'var(--text-secondary)',
-                  fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
-                }}
-              >
-                🚦 Traffic Control
-              </button>
+              <>
+                <button 
+                  onClick={() => setActiveTab('traffic')}
+                  style={{ 
+                    padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                    background: activeTab === 'traffic' ? '#f87171' : 'transparent',
+                    color: activeTab === 'traffic' ? '#fff' : 'var(--text-secondary)',
+                    fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
+                  }}
+                >
+                  🚦 Traffic Control
+                </button>
+                <button 
+                  onClick={() => setActiveTab('ai')}
+                  style={{ 
+                    padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                    background: activeTab === 'ai' ? '#a78bfa' : 'transparent',
+                    color: activeTab === 'ai' ? '#fff' : 'var(--text-secondary)',
+                    fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s',
+                    marginLeft: 4
+                  }}
+                >
+                  🧠 AI Agent
+                </button>
+              </>
             )}
           </div>
 
@@ -1361,6 +1376,11 @@ function App() {
           networkMode={networkMode}
           trafficHistory={trafficHistory}
         />
+      )}
+
+      {/* ═══ TAB: AI AGENT (Admin Only) ═══ */}
+      {activeTab === 'ai' && role === 'admin' && (
+        <AIIncidentAnalysis />
       )}
 
     </div>
