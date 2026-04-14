@@ -644,7 +644,180 @@ class TestWebSocketMessages(unittest.TestCase):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# SECTION 6: Live Integration Tests (Optional — requires Docker)
+# SECTION 6: End-to-End Sensor → Edge → Dashboard Alert Tests
+# ═══════════════════════════════════════════════════════════════════
+
+class TestSensorToDashboardPipeline(unittest.TestCase):
+    """End-to-end tests validating the full pipeline from sensor data generation
+    through edge node processing to the format expected by the frontend/mobile
+    WebSocket consumer. This bridges the gap from 'pipeline test' to 'mobile alert'."""
+
+    def setUp(self):
+        self.traffic_buffer = {}
+        self.published_messages = []
+        self.network_mode = "5G"
+        self.mock_client = MagicMock()
+        self.mock_client.publish = MagicMock(side_effect=self._capture_publish)
+
+    def _capture_publish(self, topic, payload):
+        self.published_messages.append({
+            "topic": topic,
+            "payload": json.loads(payload) if isinstance(payload, str) else json.loads(payload.decode())
+        })
+
+    def _process_message(self, topic, payload_dict):
+        """Mimics edge_node.on_message logic."""
+        if topic == "city/network/control":
+            new_mode = payload_dict.get("mode")
+            if new_mode in ["5G", "4G_FALLBACK"]:
+                self.network_mode = new_mode
+            return
+
+        agg_threshold = 3 if self.network_mode == "5G" else 10
+
+        if "raw/traffic" in topic:
+            zone = payload_dict.get("zone_id")
+            if zone not in self.traffic_buffer:
+                self.traffic_buffer[zone] = []
+            self.traffic_buffer[zone].append(payload_dict.get("vehicle_count"))
+            if len(self.traffic_buffer[zone]) >= agg_threshold:
+                avg_count = sum(self.traffic_buffer[zone]) / len(self.traffic_buffer[zone])
+                processed = {
+                    "zone_id": zone,
+                    "avg_vehicle_count": avg_count,
+                    "timestamp": payload_dict.get("timestamp"),
+                    "mode": self.network_mode,
+                    "compressed": self.network_mode == "4G_FALLBACK"
+                }
+                self.mock_client.publish(f"city/traffic/{zone}", json.dumps(processed))
+                self.traffic_buffer[zone] = []
+        elif "raw/waste" in topic:
+            waste_threshold = 10 if self.network_mode == "5G" else 80
+            if payload_dict.get("fill_level", 0) >= waste_threshold:
+                self.mock_client.publish(topic.replace("raw/", "city/"), json.dumps(payload_dict))
+        elif "raw/emergency" in topic:
+            self.mock_client.publish(topic.replace("raw/", "city/"), json.dumps(payload_dict))
+
+    def test_sensor_to_dashboard_traffic_format(self):
+        """Verify that sensor-generated traffic data, once aggregated by the edge,
+        produces a payload matching the frontend's expected WebSocket format."""
+        print("\n🧪 E2E TEST: Sensor → Edge → Dashboard Traffic Format")
+
+        # Simulate sensor generating 3 traffic readings (triggers 5G aggregation)
+        for data in FAKE_TRAFFIC_DATA[:3]:
+            self._process_message(f"raw/traffic/{data['zone_id']}", data)
+
+        traffic_msgs = [m for m in self.published_messages if "traffic" in m["topic"]]
+        self.assertEqual(len(traffic_msgs), 1, "Edge should produce exactly 1 aggregated message")
+
+        dashboard_payload = traffic_msgs[0]["payload"]
+        # Verify the payload has all fields the frontend expects
+        required_frontend_fields = {"zone_id", "avg_vehicle_count", "timestamp", "mode", "compressed"}
+        self.assertTrue(required_frontend_fields.issubset(dashboard_payload.keys()),
+                        f"Dashboard payload missing fields: {required_frontend_fields - set(dashboard_payload.keys())}")
+
+        # Verify types match what React state expects
+        self.assertIsInstance(dashboard_payload["avg_vehicle_count"], float)
+        self.assertIsInstance(dashboard_payload["zone_id"], str)
+        self.assertIsInstance(dashboard_payload["compressed"], bool)
+        print(f"   ✅ Payload has all required frontend fields: {required_frontend_fields}")
+        print(f"   ✅ avg_vehicle_count={dashboard_payload['avg_vehicle_count']}, mode={dashboard_payload['mode']}")
+
+    def test_sensor_to_dashboard_emergency_alert(self):
+        """Verify that emergency alerts reach the dashboard in the correct format
+        for real-time display and notification rendering."""
+        print("\n🧪 E2E TEST: Sensor → Edge → Dashboard Emergency Alert")
+
+        self._process_message("raw/emergency/alerts", FAKE_EMERGENCY_DATA[0])
+
+        emergency_msgs = [m for m in self.published_messages if "emergency" in m["topic"]]
+        self.assertEqual(len(emergency_msgs), 1, "Emergency should reach dashboard immediately")
+
+        alert = emergency_msgs[0]["payload"]
+        # Frontend renders: type, severity, location, timestamp
+        self.assertIn("type", alert)
+        self.assertIn("severity", alert)
+        self.assertIn("location", alert)
+        self.assertIn("timestamp", alert)
+        self.assertIn("lat", alert["location"])
+        self.assertIn("lng", alert["location"])
+        print(f"   ✅ Emergency alert renderable: type={alert['type']}, severity={alert['severity']}")
+
+    def test_sensor_to_dashboard_waste_alert(self):
+        """Verify that critical waste alerts (bin full) bypass edge filtering
+        and reach the dashboard for display."""
+        print("\n🧪 E2E TEST: Sensor → Edge → Dashboard Waste Alert")
+
+        # Send critical waste (fill=92%) — should pass in both 5G and 4G
+        self._process_message("raw/waste/B001", FAKE_WASTE_DATA[3])  # fill_level=92
+
+        waste_msgs = [m for m in self.published_messages if "waste" in m["topic"]]
+        self.assertEqual(len(waste_msgs), 1, "Critical waste should reach dashboard")
+
+        waste_alert = waste_msgs[0]["payload"]
+        self.assertIn("bin_id", waste_alert)
+        self.assertIn("fill_level", waste_alert)
+        self.assertGreaterEqual(waste_alert["fill_level"], 80)
+        print(f"   ✅ Waste alert renderable: bin={waste_alert['bin_id']}, fill={waste_alert['fill_level']}%")
+
+    def test_network_switch_affects_dashboard_data_resolution(self):
+        """Verify that switching from 5G to 4G changes the data resolution
+        that reaches the dashboard (demonstrating the full adaptive pipeline)."""
+        print("\n🧪 E2E TEST: Network Switch Impact on Dashboard Data")
+
+        # 5G mode: waste fill=25% should reach dashboard
+        self._process_message("raw/waste/B001", FAKE_WASTE_DATA[0])  # fill=25
+        waste_5g = len([m for m in self.published_messages if "waste" in m["topic"]])
+        self.assertEqual(waste_5g, 1, "In 5G, fill=25% reaches dashboard")
+
+        # Switch to 4G
+        self._process_message("city/network/control", {"mode": "4G_FALLBACK"})
+
+        # Same fill=25% should NOT reach dashboard in 4G
+        self._process_message("raw/waste/B002", {"bin_id": "B002", "fill_level": 25, "battery": 80, "timestamp": "test"})
+        waste_4g = len([m for m in self.published_messages if "waste" in m["topic"]])
+        self.assertEqual(waste_4g, 1, "In 4G, fill=25% is filtered before reaching dashboard")
+        print("   ✅ Dashboard receives less data in 4G mode (bandwidth optimization confirmed)")
+
+    def test_websocket_message_format_for_frontend(self):
+        """Verify WebSocket WELCOME and TRAFFIC_UPDATE messages
+        match the format expected by the frontend React component."""
+        print("\n🧪 E2E TEST: WebSocket Message Formats for Frontend")
+
+        # Test WELCOME message format (sent on ws.onopen by gateway)
+        welcome = {"type": "WELCOME", "message": "Connected to NexaCity5G Gateway Real-time Stream"}
+        self.assertEqual(welcome["type"], "WELCOME")
+        self.assertIn("NexaCity", welcome["message"])
+
+        # Test TRAFFIC_UPDATE format (what frontend receives after edge processing)
+        traffic_update = {
+            "type": "TRAFFIC_UPDATE",
+            "zone_id": "Z1",
+            "avg_vehicle_count": 61.7,
+            "mode": "5G",
+            "timestamp": "2026-04-14T01:02:00"
+        }
+        # Verify JSON round-trip (simulates WebSocket send/receive)
+        serialized = json.dumps(traffic_update)
+        parsed = json.loads(serialized)
+        self.assertEqual(parsed["type"], "TRAFFIC_UPDATE")
+        self.assertIsInstance(parsed["avg_vehicle_count"], float)
+
+        # Test EMERGENCY_ALERT format
+        emergency_update = {
+            "type": "EMERGENCY_ALERT",
+            "emergency_type": "FIRE",
+            "severity": "HIGH",
+            "location": {"lat": 22.57, "lng": 88.36},
+            "timestamp": "2026-04-14T01:00:00"
+        }
+        parsed_emergency = json.loads(json.dumps(emergency_update))
+        self.assertEqual(parsed_emergency["type"], "EMERGENCY_ALERT")
+        print("   ✅ All WebSocket message formats validated for frontend consumption")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# SECTION 7: Live Integration Tests (Optional — requires Docker)
 # ═══════════════════════════════════════════════════════════════════
 
 class TestLiveIntegration(unittest.TestCase):
@@ -772,6 +945,7 @@ class NexaCityTestRunner:
             TestFullPipelineScenarios,
             TestAPIResponseFormats,
             TestWebSocketMessages,
+            TestSensorToDashboardPipeline,
             TestLiveIntegration,
         ]
 

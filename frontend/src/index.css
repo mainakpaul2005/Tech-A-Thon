@@ -1,6 +1,8 @@
 /* ══════════════════════════════════════════════
-   NexaCity5G — Dashboard Design System
+   NexaCity — Dashboard Design System
    ══════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
   --bg-main: #0a0e17;
@@ -84,8 +86,6 @@
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
     --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 *,
 *::before,

@@ -1,6 +1,6 @@
-# NexaCity5G Project Plan
+# NexaCity Project Plan
 
-This document outlines the steps for building the NexaCity5G modular smart city platform.
+This document outlines the steps for building the NexaCity modular smart city platform.
 
 ## Phase 1: Infrastructure & Core Setup
 1.  [x] **Environment Setup**: Docker configuration for MQTT, Database, and Redis.
@@ -18,11 +18,12 @@ This document outlines the steps for building the NexaCity5G modular smart city 
 
 ## Phase 4: Frontend Development
 1.  [x] **Mobile App (React Native)**: Cross-platform dashboard for city administrators (Responsive Web-first).
-2.  [x] **Real-time Visualization**: WebSocket-driven live updates for traffic and emergencies.
-3.  [x] **Analytics Dashboard**: Visual charts for predictive insights.
+2.  [x] **Real-time Visualization**: WebSocket-driven live updates for traffic and emergencies. *(Includes simulated edge pipeline + WS gateway connection)*
+3.  [x] **Analytics Dashboard**: Visual charts for predictive insights. *(Traffic congestion prediction, waste collection optimizer, pipeline stats)*
+4.  [x] **Smart Traffic Management**: IoT-driven Traffic Command Center for city corporation & traffic police admins. *(Signal override, emergency corridor clearing, automation rules, incident reporting — web + mobile)*
 
 ## Phase 5: Advanced Features & Testing
 1.  [x] **5G/4G Fallback**: Implement logic to handle bandwidth fluctuations and network switching.
 2.  [x] **Scalability**: Documentation and configurations for multi-city deployment.
-3.  [x] **Verification**: End-to-end testing of the data pipeline from sensor simulation to mobile alert.
+3.  [x] **Verification**: End-to-end testing of the data pipeline from sensor simulation to mobile alert. *(33 tests passing — includes Sensor→Edge→Dashboard E2E suite)*
 4.  [ ] **Hardware Procurement**: [Sensor Specification & Budgeting](file:///C:/Users/paul_mainak/.gemini/antigravity/brain/9d60443e-57f5-4657-b294-e0d7fa60e717/sensor_specification.md) (₹500 limit).

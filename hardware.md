@@ -1,4 +1,4 @@
-# 🛠️ NEXACITY5G: HARDWARE GUIDE (₹500 VERSION)
+# 🛠️ NEXACITY: HARDWARE GUIDE (₹500 VERSION)
 
 This guide provides a "Zero-Resistor" wiring path and the data flow implementation.
 
