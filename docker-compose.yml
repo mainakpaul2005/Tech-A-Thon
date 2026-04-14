@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  # MQTT Broker - Eclipse Mosquitto
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: nexacity-mqtt
+    ports:
+      - "1883:1883"   # MQTT Port
+      - "9001:9001"   # WebSocket Port
+    volumes:
+      - ./infra/mosquitto/config:/mosquitto/config
+      - ./infra/mosquitto/data:/mosquitto/data
+      - ./infra/mosquitto/log:/mosquitto/log
+    restart: always
+
+  # Primary Database - PostgreSQL (with PostGIS for spatial data)
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: nexacity-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password123}
+      POSTGRES_DB: ${DB_NAME:-nexacity_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  # Cache and Real-time Store - Redis
+  redis:
+    image: redis:7.0-alpine
+    container_name: nexacity-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  # Gateway Service - API & WebSocket Entry Point
+  gateway:
+    build: ./services/gateway
+    container_name: nexacity-gateway
+    ports:
+      - "${GATEWAY_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+      - DB_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password123}@postgres:5432/${DB_NAME:-nexacity_db}
+    depends_on:
+      - postgres
+      - redis
+      - mosquitto
+    restart: always
+
+  # Traffic Management Service
+  traffic-service:
+    build: ./services/traffic
+    container_name: nexacity-traffic
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password123}@postgres:5432/${DB_NAME:-nexacity_db}
+      - MQTT_URL=mqtt://mosquitto:1883
+    depends_on:
+      - postgres
+      - mosquitto
+    restart: always
+
+  # Emergency Response Service
+  emergency-service:
+    build: ./services/emergency
+    container_name: nexacity-emergency
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password123}@postgres:5432/${DB_NAME:-nexacity_db}
+      - MQTT_URL=mqtt://mosquitto:1883
+    depends_on:
+      - postgres
+      - mosquitto
+    restart: always
+
+  # Waste Monitoring Service
+  waste-service:
+    build: ./services/waste
+    container_name: nexacity-waste
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password123}@postgres:5432/${DB_NAME:-nexacity_db}
+      - MQTT_URL=mqtt://mosquitto:1883
+    depends_on:
+      - postgres
+      - mosquitto
+    restart: always
+
+  # AI Analytics Service
+  analytics-service:
+    build: ./services/analytics
+    container_name: nexacity-analytics
+    environment:
+      - MQTT_BROKER=mosquitto
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-password123}@postgres:5432/${DB_NAME:-nexacity_db}
+    depends_on:
+      - postgres
+      - mosquitto
+    restart: always
+
+  # IoT Sensor Simulator
+  sensor-simulator:
+    build: ./simulators
+    container_name: nexacity-simulator
+    environment:
+      - MQTT_BROKER=mosquitto
+    depends_on:
+      - mosquitto
+    restart: always
+
+  # Edge Computing Node
+  edge-node:
+    build: ./services/edge
+    container_name: nexacity-edge
+    environment:
+      - MQTT_BROKER=mosquitto
+    depends_on:
+      - mosquitto
+    restart: always
+
+  # Administrator Dashboard - Mobile & Web
+  dashboard:
+    build: ./frontend
+    container_name: nexacity-dashboard
+    ports:
+      - "8080:80"
+    depends_on:
+      - gateway
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:

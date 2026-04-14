@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NexaCity5G — Smart City Platform Demo</title>
+    <meta name="description" content="Interactive demonstration of NexaCity5G, a modular smart city platform with 5G-powered IoT, edge computing, and predictive analytics.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ══════════════════════════════════════════════
+           DESIGN TOKENS
+           ══════════════════════════════════════════════ */
+        :root {
+            --bg-main: #0a0e17;
+            --bg-surface: #111827;
+            --bg-card: #1a2234;
+            --bg-card-hover: #1f2a40;
+            --bg-highlight: #263049;
+            --bg-elevated: #1e2a42;
+            --bg-nav: rgba(10, 14, 23, 0.92);
+            --bg-nav-mobile: rgba(10, 14, 23, 0.97);
+            --border-nav: rgba(38, 48, 73, 0.5);
+            --bg-console: #080c14;
+
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #475569;
+
+            --accent-blue: #60a5fa;
+            --accent-cyan: #22d3ee;
+            --accent-green: #34d399;
+            --accent-red: #f87171;
+            --accent-orange: #fb923c;
+            --accent-purple: #a78bfa;
+            --accent-yellow: #fbbf24;
+
+            --gradient-brand: linear-gradient(135deg, #60a5fa 0%, #22d3ee 100%);
+            --gradient-danger: linear-gradient(135deg, #f87171, #fb923c);
+            --gradient-success: linear-gradient(135deg, #34d399, #22d3ee);
+            --gradient-purple: linear-gradient(135deg, #a78bfa, #60a5fa);
+
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+            --shadow-md: 0 8px 24px rgba(0,0,0,0.4);
+            --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
+            --shadow-glow-blue: 0 0 30px rgba(96,165,250,0.15);
+            --shadow-glow-cyan: 0 0 30px rgba(34,211,238,0.12);
+
+            --radius-xs: 8px;
+            --radius-sm: 12px;
+            --radius: 16px;
+            --radius-lg: 20px;
+            --radius-xl: 24px;
+            --radius-full: 9999px;
+
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --transition: all 0.3s var(--ease);
+
+            --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+            /* Spacing scale */
+            --space-xs: 0.25rem;
+            --space-sm: 0.5rem;
+            --space-md: 1rem;
+            --space-lg: 1.5rem;
+            --space-xl: 2rem;
+            --space-2xl: 3rem;
+            --space-3xl: 4rem;
+
+            /* Mobile-first safe area */
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+            /* Nav height */
+            --nav-h: 60px;
+        }
+
+        [data-theme="light"] {
+            --bg-main: #f8fafc;
+            --bg-surface: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --bg-highlight: #e2e8f0;
+            --bg-elevated: #ffffff;
+            --bg-nav: rgba(255, 255, 255, 0.92);
+            --bg-nav-mobile: rgba(255, 255, 255, 0.97);
+            --border-nav: rgba(226, 232, 240, 0.8);
+            --bg-console: #f1f5f9;
+
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --accent-purple: #8b5cf6;
+
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+            --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+            --shadow-lg: 0 16px 48px rgba(0,0,0,0.12);
+        }
+
+        @media (min-width: 768px) {
+            :root { --nav-h: 68px; }
+        }
+
+        /* ══════════════════════════════════════════════
+           RESET & BASE
+           ══════════════════════════════════════════════ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+        body {
+            background: var(--bg-main);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        @media (min-width: 768px) { body { font-size: 16px; } }
+
+        img { max-width: 100%; height: auto; display: block; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-highlight); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ══════════════════════════════════════════════
+           NAVIGATION — Mobile-first
+           ══════════════════════════════════════════════ */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            background: var(--bg-nav);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border-bottom: 1px solid var(--border-nav);
+            height: var(--nav-h);
+            transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
+        }
+
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 100%;
+            padding: 0 var(--space-md);
+        }
+
+        @media (min-width: 768px) {
+            .nav-inner { padding: 0 var(--space-xl); }
+        }
+
+        .nav-brand {
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: var(--gradient-brand);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            flex-shrink: 0;
+        }
+
+        .nav-status {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            background: var(--bg-card);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius-full);
+            padding: 0.3rem 0.75rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .nav-status .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-green); }
+            50% { opacity: 0.4; box-shadow: 0 0 3px var(--accent-green); }
+        }
+
+        /* Hamburger button — visible on mobile */
+        .nav-hamburger {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            margin-left: auto;
+            margin-right: var(--space-sm);
+            z-index: 1001;
+        }
+
+        .nav-hamburger span {
+            display: block;
+            width: 22px; height: 2px;
+            background: var(--text-secondary);
+            border-radius: 2px;
+            transition: var(--transition);
+        }
+
+        .nav-hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+        .nav-hamburger.active span:nth-child(2) { opacity: 0; }
+        .nav-hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
+        @media (min-width: 768px) {
+            .nav-hamburger { display: none; }
+        }
+
+        /* Nav links — mobile drawer */
+        .nav-links {
+            display: none;
+            position: fixed;
+            top: var(--nav-h);
+            left: 0; right: 0;
+            background: var(--bg-nav-mobile);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--bg-highlight);
+            padding: var(--space-sm) var(--space-md);
+            list-style: none;
+            flex-direction: column;
+            gap: 2px;
+            z-index: 999;
+        }
+
+        .nav-links.open { display: flex; animation: slideDown 0.25s var(--ease); }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding: 0.75rem var(--space-md);
+            border-radius: var(--radius-xs);
+            transition: var(--transition);
+            display: block;
+        }
+
+        .nav-links a:hover, .nav-links a:active {
+            color: var(--text-primary);
+            background: var(--bg-card);
+        }
+
+        @media (min-width: 768px) {
+            .nav-links {
+                display: flex;
+                position: static;
+                background: none;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                border: none;
+                padding: 0;
+                flex-direction: row;
+                gap: 1px;
+            }
+            .nav-links a {
+                font-size: 0.78rem;
+                padding: 0.4rem 0.6rem;
+            }
+        }
+
+        /* ══════════════════════════════════════════════
+           LAYOUT
+           ══════════════════════════════════════════════ */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--space-md);
+        }
+
+        @media (min-width: 768px) {
+            .container { padding: 0 var(--space-xl); }
+        }
+
+        section {
+            padding: var(--space-2xl) 0;
+        }
+
+        @media (min-width: 768px) {
+            section { padding: var(--space-3xl) 0 var(--space-2xl); }
+        }
+
+        /* ══════════════════════════════════════════════
+           SECTION HEADERS
+           ══════════════════════════════════════════════ */
+        .section-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            background: rgba(96, 165, 250, 0.08);
+            border: 1px solid rgba(96, 165, 250, 0.18);
+            border-radius: var(--radius-full);
+            padding: 0.25rem 0.85rem;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: var(--space-md);
+        }
+
+        .section-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+            margin-bottom: var(--space-sm);
+        }
+
+        @media (min-width: 768px) {
+            .section-title { font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
+        }
+
+        .section-subtitle {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            line-height: 1.65;
+        }
+
+        /* ══════════════════════════════════════════════
+           HERO — Mobile first
+           ══════════════════════════════════════════════ */
+        #hero {
+            padding-top: calc(var(--nav-h) + var(--space-2xl));
+            padding-bottom: var(--space-2xl);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #hero::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            left: 50%; transform: translateX(-50%);
+            width: 150%; height: 80%;
+            background: radial-gradient(ellipse at center, rgba(96,165,250,0.06) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        @media (min-width: 768px) {
+            #hero { padding-top: calc(var(--nav-h) + var(--space-3xl) + 1rem); padding-bottom: var(--space-3xl); }
+        }
+
+        #hero .section-title {
+            font-size: 1.75rem;
+            max-width: 90%;
+            margin: 0 auto var(--space-md);
+        }
+
+        @media (min-width: 768px) {
+            #hero .section-title { font-size: clamp(2.2rem, 4.5vw, 3.2rem); max-width: 800px; }
+        }
+
+        #hero .section-subtitle {
+            margin: 0 auto var(--space-lg);
+            max-width: 90%;
+        }
+
+        @media (min-width: 768px) {
+            #hero .section-subtitle { max-width: 600px; margin-bottom: var(--space-xl); }
+        }
+
+        /* Hero Badges */
+        .hero-badges {
+            display: flex;
+            gap: var(--space-sm);
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: var(--space-lg);
+            padding: 0 var(--space-sm);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: var(--radius-full);
+            font-size: 0.7rem;
+            font-weight: 600;
+            border: 1px solid;
+            white-space: nowrap;
+        }
+
+        .hero-badge.blue  { color: var(--accent-blue);   border-color: rgba(96,165,250,0.25); background: rgba(96,165,250,0.06); }
+        .hero-badge.green { color: var(--accent-green);  border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.06); }
+        .hero-badge.purple{ color: var(--accent-purple); border-color: rgba(167,139,250,0.25);background: rgba(167,139,250,0.06); }
+        .hero-badge.orange{ color: var(--accent-orange); border-color: rgba(251,146,60,0.25); background: rgba(251,146,60,0.06); }
+
+        /* Hero CTAs */
+        .hero-ctas {
+            display: flex;
+            gap: var(--space-sm);
+            justify-content: center;
+            margin-bottom: var(--space-xl);
+            flex-wrap: wrap;
+            padding: 0 var(--space-md);
+        }
+
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: 0.85rem 1.6rem;
+            border-radius: var(--radius-full);
+            background: var(--gradient-brand);
+            color: #ffffff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .cta-btn:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(96,165,250,0.3); }
+        .cta-btn:active { transform: scale(0.96); }
+
+        .outline-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: 0.85rem 1.6rem;
+            border-radius: var(--radius-full);
+            background: transparent;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            border: 1px solid var(--bg-highlight);
+            cursor: pointer;
+            transition: var(--transition);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .outline-btn:hover { border-color: var(--accent-blue); }
+        .outline-btn:active { transform: scale(0.97); }
+
+        /* Hero Image */
+        .hero-image {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            border-radius: var(--radius);
+            border: 1px solid var(--bg-highlight);
+            box-shadow: var(--shadow-lg), var(--shadow-glow-blue);
+            overflow: hidden;
+        }
+
+        /* ══════════════════════════════════════════════
+           CARDS — Universal pattern
+           ══════════════════════════════════════════════ */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            padding: var(--space-lg);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(96,165,250,0.25);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+
+        .card.blue::before   { background: var(--gradient-brand); }
+        .card.red::before    { background: var(--gradient-danger); }
+        .card.green::before  { background: var(--gradient-success); }
+        .card.purple::before { background: var(--gradient-purple); }
+        .card.orange::before { background: linear-gradient(135deg, var(--accent-orange), var(--accent-red)); }
+        .card.cyan::before   { background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green)); }
+
+        .card-icon {
+            width: 44px; height: 44px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            margin-bottom: var(--space-md);
+        }
+
+        .card h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: var(--space-xs);
+            line-height: 1.3;
+        }
+
+        .card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        .tech-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            margin-top: var(--space-md);
+        }
+
+        .tech-tag {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            background: var(--bg-highlight);
+            color: var(--text-secondary);
+        }
+
+        /* ══════════════════════════════════════════════
+           ARCHITECTURE GRID
+           ══════════════════════════════════════════════ */
+        .arch-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-md);
+            margin-top: var(--space-xl);
+        }
+
+        @media (min-width: 600px) {
+            .arch-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (min-width: 1000px) {
+            .arch-grid { grid-template-columns: 1fr 1fr 1fr; }
+        }
+
+        /* ══════════════════════════════════════════════
+           LIVE DASHBOARD
+           ══════════════════════════════════════════════ */
+        .dashboard-demo { margin-top: var(--space-xl); }
+
+        .dash-top-bar {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+            margin-bottom: var(--space-lg);
+        }
+
+        @media (min-width: 600px) {
+            .dash-top-bar { flex-direction: row; justify-content: space-between; align-items: center; }
+        }
+
+        .dash-top-bar h3 { font-weight: 700; font-size: 1.05rem; }
+
+        .network-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .network-toggle-label {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            display: none;
+        }
+
+        @media (min-width: 600px) {
+            .network-toggle-label { display: inline; }
+        }
+
+        .toggle-btn {
+            padding: 0.45rem 1rem;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--bg-highlight);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            -webkit-tap-highlight-color: transparent;
+            flex: 1;
+            text-align: center;
+        }
+
+        @media (min-width: 600px) {
+            .toggle-btn { flex: unset; }
+        }
+
+        .toggle-btn:active { transform: scale(0.96); }
+        .toggle-btn.active-5g {
+            background: rgba(52,211,153,0.12);
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+        .toggle-btn.active-4g {
+            background: rgba(251,146,60,0.12);
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-lg);
+        }
+
+        @media (min-width: 768px) {
+            .stats-grid { grid-template-columns: repeat(4, 1fr); gap: var(--space-md); }
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            padding: var(--space-md);
+            transition: var(--transition);
+        }
+
+        @media (min-width: 768px) {
+            .stat-card { padding: var(--space-lg); }
+        }
+
+        .stat-card:active { transform: scale(0.98); }
+
+        .stat-label {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: var(--space-xs);
+            line-height: 1.4;
+        }
+
+        @media (min-width: 768px) {
+            .stat-label { font-size: 0.68rem; }
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+        }
+
+        @media (min-width: 768px) {
+            .stat-value { font-size: 1.8rem; }
+        }
+
+        .stat-value.blue   { color: var(--accent-blue); }
+        .stat-value.green  { color: var(--accent-green); }
+        .stat-value.orange { color: var(--accent-orange); }
+        .stat-value.red    { color: var(--accent-red); }
+        .stat-value.cyan   { color: var(--accent-cyan); }
+
+        .stat-delta {
+            font-size: 0.68rem;
+            margin-top: var(--space-xs);
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+        }
+
+        .stat-delta.up   { color: var(--accent-green); }
+        .stat-delta.down { color: var(--accent-red); }
+
+        /* Chart Area */
+        .chart-area {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-md);
+        }
+
+        @media (min-width: 768px) {
+            .chart-area { grid-template-columns: 2fr 1fr; gap: var(--space-lg); }
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            padding: var(--space-md);
+        }
+
+        @media (min-width: 768px) {
+            .chart-card { padding: var(--space-lg); }
+        }
+
+        .chart-card h4 {
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin-bottom: var(--space-md);
+        }
+
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        /* Feed */
+        .feed-list {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        @media (min-width: 768px) {
+            .feed-list { max-height: 350px; }
+        }
+
+        .feed-item {
+            display: flex;
+            gap: var(--space-sm);
+            padding: 0.7rem 0;
+            border-bottom: 1px solid rgba(38,48,73,0.4);
+            animation: fadeSlideIn 0.35s var(--ease);
+        }
+
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .feed-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+
+        .feed-dot.traffic   { background: var(--accent-blue);   box-shadow: 0 0 6px rgba(96,165,250,0.35); }
+        .feed-dot.waste     { background: var(--accent-orange); box-shadow: 0 0 6px rgba(251,146,60,0.35); }
+        .feed-dot.emergency { background: var(--accent-red);    box-shadow: 0 0 6px rgba(248,113,113,0.35); }
+        .feed-dot.edge      { background: var(--accent-cyan);   box-shadow: 0 0 6px rgba(34,211,238,0.35); }
+        .feed-dot.network   { background: var(--accent-purple); box-shadow: 0 0 6px rgba(167,139,250,0.35); }
+
+        .feed-text { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45; }
+        .feed-text strong { color: var(--text-primary); }
+        .feed-time { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.1rem; font-family: var(--font-mono); }
+
+        /* AI Insight */
+        .ai-insight {
+            margin-top: var(--space-lg);
+            background: rgba(34,211,238,0.04);
+            border: 1px solid rgba(34,211,238,0.15);
+            border-radius: var(--radius);
+            padding: var(--space-md);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-sm);
+        }
+
+        .ai-insight-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+
+        .ai-insight p {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        .ai-insight strong { color: var(--accent-cyan); }
+
+        /* ══════════════════════════════════════════════
+           DATA PIPELINE
+           ══════════════════════════════════════════════ */
+        .pipeline-wrap { margin-top: var(--space-xl); }
+
+        .pipeline {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            overflow-x: auto;
+            padding: var(--space-lg) 0;
+            -webkit-overflow-scrolling: touch;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+        }
+
+        .pipeline::-webkit-scrollbar { display: none; }
+
+        .pipeline-node {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            padding: var(--space-md);
+            min-width: 130px;
+            text-align: center;
+            transition: var(--transition);
+            flex-shrink: 0;
+            scroll-snap-align: center;
+        }
+
+        @media (min-width: 768px) {
+            .pipeline-node { min-width: 160px; padding: var(--space-md) var(--space-lg); }
+        }
+
+        .pipeline-node.active {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(34,211,238,0.12);
+            background: var(--bg-card-hover);
+        }
+
+        .pipeline-node .node-icon { font-size: 1.5rem; margin-bottom: var(--space-xs); }
+        .pipeline-node h4 { font-size: 0.78rem; font-weight: 700; }
+        .pipeline-node p { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+
+        .pipeline-arrow {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            padding: 0 0.3rem;
+            transition: var(--transition);
+        }
+
+        .pipeline-arrow.active { color: var(--accent-cyan); text-shadow: 0 0 8px rgba(34,211,238,0.3); }
+
+        .pipeline-cta {
+            text-align: center;
+            margin-top: var(--space-md);
+        }
+
+        /* Console Panel */
+        .console-panel {
+            background: var(--bg-console);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-top: var(--space-xl);
+            transition: background 0.3s var(--ease);
+        }
+
+        .console-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: 0.5rem var(--space-md);
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--bg-highlight);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .console-body {
+            padding: var(--space-md);
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            line-height: 1.85;
+            max-height: 220px;
+            overflow-y: auto;
+            overflow-x: auto;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        @media (min-width: 768px) {
+            .console-body { font-size: 0.73rem; max-height: 280px; white-space: pre; word-break: normal; }
+        }
+
+        .console-body .log-info { color: var(--accent-blue); }
+        .console-body .log-ok   { color: var(--accent-green); }
+        .console-body .log-warn { color: var(--accent-orange); }
+        .console-body .log-err  { color: var(--accent-red); }
+        .console-body .log-edge { color: var(--accent-cyan); }
+
+        /* ══════════════════════════════════════════════
+           EDGE COMPUTING
+           ══════════════════════════════════════════════ */
+        .edge-visual {
+            margin-top: var(--space-xl);
+            border-radius: var(--radius);
+            border: 1px solid var(--bg-highlight);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Code Blocks */
+        .code-preview-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-md);
+            margin-top: var(--space-xl);
+        }
+
+        @media (min-width: 768px) {
+            .code-preview-grid { grid-template-columns: 1fr 1fr; gap: var(--space-lg); }
+        }
+
+        .code-block {
+            background: var(--bg-surface);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: 0.6rem var(--space-md);
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--bg-highlight);
+        }
+
+        .code-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+        }
+
+        .code-dot.r { background: #ff5f57; }
+        .code-dot.y { background: #febc2e; }
+        .code-dot.g { background: #28c840; }
+
+        .code-filename {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-left: var(--space-xs);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .code-body {
+            padding: var(--space-md);
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            line-height: 1.75;
+            overflow-x: auto;
+            white-space: pre;
+            color: var(--text-secondary);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (min-width: 768px) {
+            .code-body { font-size: 0.76rem; }
+        }
+
+        .code-body .kw      { color: var(--accent-purple); }
+        .code-body .fn      { color: var(--accent-blue); }
+        .code-body .str     { color: var(--accent-green); }
+        .code-body .comment { color: var(--text-muted); }
+        .code-body .num     { color: var(--accent-orange); }
+        .code-body .var     { color: var(--accent-cyan); }
+
+        /* Edge Mode Comparison */
+        .edge-compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-sm);
+            margin-top: var(--space-xl);
+        }
+
+        @media (min-width: 768px) {
+            .edge-compare { gap: var(--space-lg); }
+        }
+
+        .edge-mode-card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            padding: var(--space-md);
+            text-align: center;
+        }
+
+        @media (min-width: 768px) {
+            .edge-mode-card { padding: var(--space-lg); }
+        }
+
+        .edge-mode-card h3 { font-size: 0.9rem; margin-bottom: var(--space-sm); }
+        .edge-mode-card p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: var(--space-xs); }
+
+        /* ══════════════════════════════════════════════
+           DOCKER / INFRASTRUCTURE
+           ══════════════════════════════════════════════ */
+        .docker-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-sm);
+            margin-top: var(--space-xl);
+        }
+
+        @media (min-width: 600px) {
+            .docker-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (min-width: 900px) {
+            .docker-grid { grid-template-columns: repeat(5, 1fr); }
+        }
+
+        .docker-card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            padding: var(--space-md);
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .docker-card:active { transform: scale(0.97); }
+
+        .docker-card .docker-icon { font-size: 1.5rem; margin-bottom: var(--space-xs); }
+        .docker-card h5 { font-size: 0.78rem; font-weight: 700; font-family: var(--font-mono); }
+        .docker-card p  { font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px; }
+
+        .docker-status {
+            display: inline-block;
+            margin-top: var(--space-sm);
+            font-size: 0.6rem;
+            font-weight: 600;
+            padding: 0.12rem 0.45rem;
+            border-radius: var(--radius-full);
+            color: var(--accent-green);
+            background: rgba(52,211,153,0.1);
+        }
+
+        /* ══════════════════════════════════════════════
+           SCALABILITY
+           ══════════════════════════════════════════════ */
+        .scale-features {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-md);
+            margin-top: var(--space-xl);
+        }
+
+        @media (min-width: 768px) {
+            .scale-features { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .scale-card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-highlight);
+            border-radius: var(--radius);
+            padding: var(--space-lg);
+            transition: var(--transition);
+        }
+
+        .scale-card:hover { border-color: rgba(167,139,250,0.3); }
+        .scale-card .big-icon { font-size: 2rem; margin-bottom: var(--space-sm); }
+        .scale-card h4 { font-weight: 700; font-size: 0.95rem; margin-bottom: var(--space-sm); }
+        .scale-card p  { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.55; }
+
+        /* ══════════════════════════════════════════════
+           FOOTER
+           ══════════════════════════════════════════════ */
+        footer {
+            border-top: 1px solid var(--bg-highlight);
+            padding: var(--space-xl) 0;
+        }
+
+        .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--space-md);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            text-align: center;
+        }
+
+        @media (min-width: 768px) {
+            .footer-inner {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                text-align: left;
+                padding: 0 var(--space-xl);
+            }
+        }
+
+        footer .brand {
+            font-weight: 800;
+            font-size: 1.05rem;
+            background: var(--gradient-brand);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        footer p { color: var(--text-muted); font-size: 0.78rem; }
+
+        /* ══════════════════════════════════════════════
+           UTILITIES
+           ══════════════════════════════════════════════ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .glow-divider {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(96,165,250,0.2), transparent);
+            margin: var(--space-md) 0;
+        }
+
+        /* Mobile scroll hint for pipeline */
+        .scroll-hint {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-xs);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: var(--space-sm);
+        }
+
+        @media (min-width: 900px) {
+            .scroll-hint { display: none; }
+        }
+
+        /* Section divider */
+        .section-divider {
+            max-width: 1200px;
+            margin: 0 auto;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--bg-highlight), transparent);
+        }
+
+        /* Inline code tag */
+        .inline-code {
+            background: var(--bg-highlight);
+            padding: 0.1rem 0.45rem;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        /* Theme toggle button specific style */
+        .theme-toggle-btn {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 0 0.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+        .theme-toggle-btn:hover { transform: scale(1.1); }
+        .theme-toggle-btn:active { transform: scale(0.9); }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════════════ NAVIGATION ═══════════════════ -->
+    <nav id="top-nav">
+        <div class="nav-inner">
+            <div class="nav-brand">NexaCity5G</div>
+            <button class="nav-hamburger" id="nav-toggle" aria-label="Toggle navigation" onclick="toggleNav()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-links" id="nav-menu">
+                <li><a href="#hero" onclick="closeNav()">Home</a></li>
+                <li><a href="#architecture" onclick="closeNav()">Architecture</a></li>
+                <li><a href="#dashboard" onclick="closeNav()">Dashboard</a></li>
+                <li><a href="#pipeline" onclick="closeNav()">Pipeline</a></li>
+                <li><a href="#edge" onclick="closeNav()">Edge AI</a></li>
+                <li><a href="#infra" onclick="closeNav()">Infra</a></li>
+                <li><a href="#scale" onclick="closeNav()">Scale</a></li>
+            </ul>
+            <div class="nav-status">
+                <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle Theme" onclick="toggleTheme()">☀️</button>
+                <div class="dot"></div>
+                <span id="nav-network-label" style="color: var(--accent-green);">5G</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════ HERO ═══════════════════ -->
+    <section id="hero">
+        <div class="container">
+            <div class="section-tag">🏙️ Tech-A-Thon Project</div>
+            <h1 class="section-title">
+                The Future of Urban Intelligence, Powered by <span style="background: var(--gradient-brand); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">5G & Edge AI</span>
+            </h1>
+            <p class="section-subtitle">
+                NexaCity5G connects IoT sensors, edge computing, and AI analytics through a 5G-powered mesh — enabling real-time traffic management, emergency response, and waste optimization.
+            </p>
+
+            <div class="hero-badges">
+                <span class="hero-badge blue">📡 5G / 4G Adaptive</span>
+                <span class="hero-badge green">🤖 AI Predictions</span>
+                <span class="hero-badge purple">⚡ Edge Computing</span>
+                <span class="hero-badge orange">🐳 Containerized</span>
+            </div>
+
+            <div class="hero-ctas">
+                <a href="#dashboard" class="cta-btn">🚀 Explore Live Demo</a>
+                <a href="#architecture" class="outline-btn">📐 Architecture</a>
+            </div>
+
+            <div class="hero-image reveal">
+                <img src="assets/hero.png" alt="NexaCity5G Smart City Visualization" loading="eager">
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════ ARCHITECTURE ═══════════════════ -->
+    <section id="architecture" class="reveal">
+        <div class="container">
+            <div class="section-tag">📐 System Design</div>
+            <h2 class="section-title">Microservices Architecture</h2>
+            <p class="section-subtitle">
+                Each subsystem is an independent, containerized service — communicating via MQTT pub/sub and REST APIs through a central gateway.
+            </p>
+
+            <div class="arch-grid">
+                <div class="card blue">
+                    <div class="card-icon" style="background: rgba(96,165,250,0.1);">🌐</div>
+                    <h3>API Gateway</h3>
+                    <p>Central entry point handling REST proxying and WebSocket real‑time streams for dashboard clients.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Express.js</span>
+                        <span class="tech-tag">WebSocket</span>
+                        <span class="tech-tag">Proxy</span>
+                    </div>
+                </div>
+
+                <div class="card cyan">
+                    <div class="card-icon" style="background: rgba(34,211,238,0.1);">🚦</div>
+                    <h3>Traffic Management</h3>
+                    <p>Monitors real‑time vehicle counts and average speeds across zones. MQTT‑driven congestion detection.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Node.js</span>
+                        <span class="tech-tag">MQTT</span>
+                        <span class="tech-tag">PostgreSQL</span>
+                    </div>
+                </div>
+
+                <div class="card red">
+                    <div class="card-icon" style="background: rgba(248,113,113,0.1);">🚨</div>
+                    <h3>Emergency Response</h3>
+                    <p>Incident logging, first responder dispatching, and severity‑level alerts. Bypasses edge throttling.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Node.js</span>
+                        <span class="tech-tag">MQTT</span>
+                        <span class="tech-tag">Priority Lane</span>
+                    </div>
+                </div>
+
+                <div class="card orange">
+                    <div class="card-icon" style="background: rgba(251,146,60,0.1);">🗑️</div>
+                    <h3>Waste Monitoring</h3>
+                    <p>IoT‑driven bin fill levels with battery monitoring. Triggers collection when bins exceed 80%.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Node.js</span>
+                        <span class="tech-tag">MQTT</span>
+                        <span class="tech-tag">Optimization</span>
+                    </div>
+                </div>
+
+                <div class="card purple">
+                    <div class="card-icon" style="background: rgba(167,139,250,0.1);">🧠</div>
+                    <h3>AI Analytics Engine</h3>
+                    <p>Predictive models for traffic forecasting and waste scheduling. Real‑time recommendations.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">FastAPI</span>
+                        <span class="tech-tag">Pandas</span>
+                        <span class="tech-tag">ML Models</span>
+                    </div>
+                </div>
+
+                <div class="card green">
+                    <div class="card-icon" style="background: rgba(52,211,153,0.1);">📡</div>
+                    <h3>IoT Sensor Simulator</h3>
+                    <p>Generates realistic MQTT telemetry for traffic zones, waste bins, and emergency events.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Python</span>
+                        <span class="tech-tag">MQTT Pub</span>
+                        <span class="tech-tag">Paho</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════ LIVE DASHBOARD ═══════════════════ -->
+    <section id="dashboard" class="reveal">
+        <div class="container">
+            <div class="section-tag">📊 Real-Time Monitoring</div>
+            <h2 class="section-title">Live City Dashboard</h2>
+            <p class="section-subtitle">
+                Simulation mirrors production — all values generated by the same algorithms used in the actual IoT sensor simulator.
+            </p>
+
+            <div class="dashboard-demo">
+                <div class="dash-top-bar">
+                    <h3>City Operations Center</h3>
+                    <div class="network-toggle">
+                        <span class="network-toggle-label">Network:</span>
+                        <button class="toggle-btn active-5g" id="btn-5g" onclick="setNetwork('5G')">📶 5G</button>
+                        <button class="toggle-btn" id="btn-4g" onclick="setNetwork('4G')">📱 4G Fallback</button>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Traffic Speed</div>
+                        <div class="stat-value blue" id="stat-speed">42 km/h</div>
+                        <div class="stat-delta up" id="delta-speed">▲ 3.2% vs last hr</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Waste Bins ≥ 80%</div>
+                        <div class="stat-value orange" id="stat-waste">2 / 3</div>
+                        <div class="stat-delta down" id="delta-waste">▲ 1 since last cycle</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Emergencies</div>
+                        <div class="stat-value red" id="stat-emergency">0</div>
+                        <div class="stat-delta up">✓ All Clear</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Edge Throughput</div>
+                        <div class="stat-value cyan" id="stat-edge">12.4 Mbps</div>
+                        <div class="stat-delta up" id="delta-edge">📶 Low Latency</div>
+                    </div>
+                </div>
+
+                <!-- Charts & Feed -->
+                <div class="chart-area">
+                    <div class="chart-card">
+                        <h4>📈 Traffic Flow (Live)</h4>
+                        <canvas id="trafficChart" height="200"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h4>🔔 Operations Feed</h4>
+                        <div class="feed-list" id="feed-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Insight -->
+                <div class="ai-insight">
+                    <span class="ai-insight-icon">🧠</span>
+                    <div>
+                        <p>
+                            <strong>AI Analytics —</strong>
+                            <span id="ai-insight">Re-routing public transport through Sector 7 will save 1.5 tons of carbon emissions today. Confidence: 92%.</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════ DATA PIPELINE ═══════════════════ -->
+    <section id="pipeline" class="reveal">
+        <div class="container">
+            <div class="section-tag">🔄 End-to-End Flow</div>
+            <h2 class="section-title">Data Pipeline</h2>
+            <p class="section-subtitle">
+                Watch a sensor reading travel through the entire system — from IoT device to edge processing to your dashboard.
+            </p>
+
+            <div class="pipeline-wrap">
+                <div class="pipeline" id="pipeline-visual">
+                    <div class="pipeline-node" id="pipe-sensor">
+                        <div class="node-icon">📡</div>
+                        <h4>IoT Sensors</h4>
+                        <p>Raw telemetry</p>
+                    </div>
+                    <div class="pipeline-arrow" id="arrow-1">→</div>
+                    <div class="pipeline-node" id="pipe-mqtt">
+                        <div class="node-icon">📨</div>
+                        <h4>MQTT Broker</h4>
+                        <p>Pub/Sub routing</p>
+                    </div>
+                    <div class="pipeline-arrow" id="arrow-2">→</div>
+                    <div class="pipeline-node" id="pipe-edge">
+                        <div class="node-icon">⚡</div>
+                        <h4>Edge Node</h4>
+                        <p>Aggregation</p>
+                    </div>
+                    <div class="pipeline-arrow" id="arrow-3">→</div>
+                    <div class="pipeline-node" id="pipe-service">
+                        <div class="node-icon">🔧</div>
+                        <h4>Services</h4>
+                        <p>Business logic</p>
+                    </div>
+                    <div class="pipeline-arrow" id="arrow-4">→</div>
+                    <div class="pipeline-node" id="pipe-gateway">
+                        <div class="node-icon">🌐</div>
+                        <h4>Gateway</h4>
+                        <p>API + WS</p>
+                    </div>
+                    <div class="pipeline-arrow" id="arrow-5">→</div>
+                    <div class="pipeline-node" id="pipe-dashboard">
+                        <div class="node-icon">📊</div>
+                        <h4>Dashboard</h4>
+                        <p>React UI</p>
+                    </div>
+                </div>
+
+                <div class="scroll-hint">← Swipe to scroll →</div>
+
+                <div class="pipeline-cta">
+                    <button class="cta-btn" onclick="runPipelineAnimation()" id="pipeline-play-btn">▶ Run Pipeline Demo</button>
+                </div>
+            </div>
+
+            <!-- Console -->
+            <div class="console-panel">
+                <div class="console-header">
+                    <div class="code-dot r"></div>
+                    <div class="code-dot y"></div>
+                    <div class="code-dot g"></div>
+                    <span class="code-filename">Pipeline Console</span>
+                </div>
+                <div class="console-body" id="console-output"><span class="log-info">[SYSTEM]</span> Pipeline demo ready. Click "Run Pipeline Demo" to start.
+</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════ EDGE COMPUTING ═══════════════════ -->
+    <section id="edge" class="reveal">
+        <div class="container">
+            <div class="section-tag">⚡ 5G / 4G Adaptive</div>
+            <h2 class="section-title">Adaptive Edge Computing</h2>
+            <p class="section-subtitle">
+                The edge node dynamically adjusts data resolution based on network conditions — maximizing throughput on 5G, conserving bandwidth on 4G.
+            </p>
+
+            <div class="edge-visual">
+                <img src="assets/edge.png" alt="Edge Computing Architecture" loading="lazy">
+            </div>
+
+            <!-- Code Previews -->
+            <div class="code-preview-grid">
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot r"></div>
+                        <div class="code-dot y"></div>
+                        <div class="code-dot g"></div>
+                        <span class="code-filename">edge_node.py — Adaptive Aggregation</span>
+                    </div>
+                    <div class="code-body"><span class="comment"># Strategy: Change aggregation based on network</span>
+<span class="comment"># 5G → Low agg (High resolution)</span>
+<span class="comment"># 4G → High agg (Bandwidth conservation)</span>
+<span class="var">agg_threshold</span> = <span class="num">3</span> <span class="kw">if</span> <span class="var">network_mode</span> == <span class="str">"5G"</span> <span class="kw">else</span> <span class="num">10</span>
+
+<span class="kw">if</span> <span class="fn">len</span>(<span class="var">traffic_buffer</span>[zone]) >= <span class="var">agg_threshold</span>:
+    <span class="var">avg_count</span> = <span class="fn">sum</span>(<span class="var">traffic_buffer</span>[zone]) / <span class="fn">len</span>(...)
+    <span class="var">processed</span> = {
+        <span class="str">"zone_id"</span>: zone,
+        <span class="str">"avg_vehicle_count"</span>: avg_count,
+        <span class="str">"mode"</span>: network_mode,
+        <span class="str">"compressed"</span>: network_mode == <span class="str">"4G_FALLBACK"</span>
+    }
+    client.<span class="fn">publish</span>(f<span class="str">"city/traffic/{zone}"</span>, ...)</div>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot r"></div>
+                        <div class="code-dot y"></div>
+                        <div class="code-dot g"></div>
+                        <span class="code-filename">edge_node.py — Priority Lanes</span>
+                    </div>
+                    <div class="code-body"><span class="kw">elif</span> <span class="str">"raw/waste"</span> <span class="kw">in</span> topic:
+    <span class="comment"># Fallback: only send if bin is critical (>80%)</span>
+    <span class="var">waste_threshold</span> = <span class="num">10</span> <span class="kw">if</span> <span class="var">network_mode</span> == <span class="str">"5G"</span> <span class="kw">else</span> <span class="num">80</span>
+    <span class="kw">if</span> payload[<span class="str">"fill_level"</span>] >= <span class="var">waste_threshold</span>:
+        client.<span class="fn">publish</span>(topic.<span class="fn">replace</span>(<span class="str">"raw/"</span>, <span class="str">"city/"</span>), ...)
+
+<span class="kw">elif</span> <span class="str">"raw/emergency"</span> <span class="kw">in</span> topic:
+    <span class="comment"># Emergency alerts NEVER fall back;</span>
+    <span class="comment"># they always use priority lanes</span>
+    client.<span class="fn">publish</span>(topic.<span class="fn">replace</span>(<span class="str">"raw/"</span>, <span class="str">"city/"</span>), ...)
+    <span class="fn">print</span>(<span class="str">"🚨 PRIORITY: Emergency alert passed"</span>)</div>
+                </div>
+            </div>
+
+            <div class="edge-compare">
+                <div class="edge-mode-card" style="border-left: 3px solid var(--accent-green);">
+                    <h3>📶 5G Mode</h3>
+                    <p>Aggregation: <strong style="color: var(--accent-green);">3 readings</strong></p>
+                    <p>Waste fwd: <strong style="color: var(--accent-green);">all > 10%</strong></p>
+                    <p>Resolution: <strong style="color: var(--accent-green);">HIGH</strong></p>
+                </div>
+                <div class="edge-mode-card" style="border-left: 3px solid var(--accent-orange);">
+                    <h3>📱 4G Fallback</h3>
+                    <p>Aggregation: <strong style="color: var(--accent-orange);">10 readings</strong></p>
+                    <p>Waste fwd: <strong style="color: var(--accent-orange);">critical > 80%</strong></p>
+                    <p>Resolution: <strong style="color: var(--accent-orange);">COMPRESSED</strong></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════ INFRASTRUCTURE ═══════════════════ -->
+    <section id="infra" class="reveal">
+        <div class="container">
+            <div class="section-tag">🐳 Docker Compose</div>
+            <h2 class="section-title">Containerized Infra</h2>
+            <p class="section-subtitle">
+                The entire platform runs via a single <span class="inline-code">docker-compose up</span> command — 10 interconnected services.
+            </p>
+
+            <div class="docker-grid">
+                <div class="docker-card">
+                    <div class="docker-icon">📨</div>
+                    <h5>mosquitto</h5>
+                    <p>MQTT Broker</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">🐘</div>
+                    <h5>postgres</h5>
+                    <p>PostGIS 15</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">⚡</div>
+                    <h5>redis</h5>
+                    <p>Cache</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">🌐</div>
+                    <h5>gateway</h5>
+                    <p>API :3000</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">🚦</div>
+                    <h5>traffic</h5>
+                    <p>Traffic Svc</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">🚨</div>
+                    <h5>emergency</h5>
+                    <p>Incidents</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">🗑️</div>
+                    <h5>waste</h5>
+                    <p>Bin Monitor</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">🧠</div>
+                    <h5>analytics</h5>
+                    <p>FastAPI ML</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">📡</div>
+                    <h5>simulator</h5>
+                    <p>IoT Gen</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+                <div class="docker-card">
+                    <div class="docker-icon">📊</div>
+                    <h5>dashboard</h5>
+                    <p>React :8080</p>
+                    <div class="docker-status">● Running</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════ SCALABILITY ═══════════════════ -->
+    <section id="scale" class="reveal">
+        <div class="container">
+            <div class="section-tag">🌍 Multi-City Ready</div>
+            <h2 class="section-title">Production Scalability</h2>
+            <p class="section-subtitle">
+                Designed for horizontal scaling via Kubernetes, MQTT bridging, and distributed databases.
+            </p>
+
+            <div class="scale-features">
+                <div class="scale-card">
+                    <div class="big-icon">☸️</div>
+                    <h4>Kubernetes Orchestration</h4>
+                    <p>HPA scales each microservice on CPU, memory, or custom MQTT queue depth. Edge nodes deploy as regional pods.</p>
+                </div>
+                <div class="scale-card">
+                    <div class="big-icon">🌐</div>
+                    <h4>Global MQTT Mesh</h4>
+                    <p>Each city runs a local broker cluster. Regional brokers bridge critical topics to central cloud analytics.</p>
+                </div>
+                <div class="scale-card">
+                    <div class="big-icon">🗄️</div>
+                    <h4>Distributed Data Layer</h4>
+                    <p>PostgreSQL → Citus for sharded spatial data. Redis Cluster for globally distributed sub-ms caching.</p>
+                </div>
+            </div>
+
+            <div class="code-block" style="margin-top: var(--space-xl);">
+                <div class="code-header">
+                    <div class="code-dot r"></div>
+                    <div class="code-dot y"></div>
+                    <div class="code-dot g"></div>
+                    <span class="code-filename">k8s/deployment.yaml</span>
+                </div>
+                <div class="code-body"><span class="kw">apiVersion</span>: apps/v1
+<span class="kw">kind</span>: Deployment
+<span class="kw">metadata</span>:
+  <span class="var">name</span>: <span class="str">nexacity-gateway</span>
+<span class="kw">spec</span>:
+  <span class="var">replicas</span>: <span class="num">3</span>
+  <span class="kw">selector</span>:
+    <span class="var">matchLabels</span>:
+      <span class="var">app</span>: <span class="str">gateway</span>
+  <span class="kw">template</span>:
+    <span class="kw">spec</span>:
+      <span class="kw">containers</span>:
+      - <span class="var">name</span>: <span class="str">gateway</span>
+        <span class="var">image</span>: <span class="str">nexacity/gateway:latest</span>
+        <span class="kw">ports</span>:
+        - <span class="var">containerPort</span>: <span class="num">3000</span>
+---
+<span class="kw">apiVersion</span>: v1
+<span class="kw">kind</span>: Service
+  <span class="var">type</span>: <span class="str">LoadBalancer</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ FOOTER ═══════════════════ -->
+    <footer>
+        <div class="footer-inner">
+            <div>
+                <div class="brand">NexaCity5G</div>
+                <p style="margin-top: 0.15rem;">Smart City Platform — Tech-A-Thon 2026</p>
+            </div>
+            <p>Microservices · IoT · Edge Computing · 5G · AI</p>
+        </div>
+    </footer>
+
+    <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
+    <script>
+        // ── State ──
+        let networkMode = '5G';
+        let trafficHistory = [];
+        const feedItems = [];
+        const zones = ['Z1', 'Z2', 'Z3', 'Z4'];
+        const bins = ['B001', 'B002', 'B003'];
+        const emergencyTypes = ['FIRE', 'MEDICAL', 'ACCIDENT'];
+        const aiInsights = [
+            'Re-routing public transport through Sector 7 will save 1.5 tons of carbon emissions today. Confidence: 92%.',
+            'Predicted traffic spike on 5th Avenue at 17:30. Recommend signal timing adjustment. Confidence: 88%.',
+            'Waste collection in Zone 3 can be deferred by 8 hours without overflow risk. Savings: $120. Confidence: 95%.',
+            'Emergency response time can be reduced 22% by pre-positioning Unit 5 at Sector 2. Confidence: 91%.',
+            'Congestion index at Zone 1 is 0.45. Maintain current signal timing for optimal throughput. Confidence: 94%.',
+            'Energy consumption can be reduced 8% by dimming non-critical streetlights after 23:00. Confidence: 89%.',
+        ];
+        let currentInsightIdx = 0;
+
+        // ── Theme Management ──
+        function toggleTheme() {
+            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+            document.documentElement.setAttribute('data-theme', isLight ? 'dark' : 'light');
+            document.getElementById('theme-toggle').textContent = isLight ? '☀️' : '🌙';
+            
+            // Allow time for CSS transition, then redraw chart
+            setTimeout(() => {
+                if (window.drawChart) window.drawChart();
+            }, 300);
+        }
+
+        // ── Navigation ──
+        function toggleNav() {
+            const menu = document.getElementById('nav-menu');
+            const toggle = document.getElementById('nav-toggle');
+            menu.classList.toggle('open');
+            toggle.classList.toggle('active');
+        }
+
+        function closeNav() {
+            document.getElementById('nav-menu').classList.remove('open');
+            document.getElementById('nav-toggle').classList.remove('active');
+        }
+
+        // Close nav on outside click (mobile)
+        document.addEventListener('click', function(e) {
+            const nav = document.getElementById('top-nav');
+            if (!nav.contains(e.target)) closeNav();
+        });
+
+        // ── Initialize Chart ──
+        const canvas = document.getElementById('trafficChart');
+        const ctx = canvas.getContext('2d');
+        let chartWidth, chartHeight;
+
+        function setupCanvas() {
+            chartWidth = canvas.parentElement.clientWidth - 32;
+            chartHeight = Math.min(200, window.innerHeight * 0.25);
+            canvas.width = chartWidth * 2;
+            canvas.height = chartHeight * 2;
+            canvas.style.width = chartWidth + 'px';
+            canvas.style.height = chartHeight + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(2, 2);
+        }
+
+        setupCanvas();
+
+        // Seed initial data
+        for (let i = 0; i < 40; i++) {
+            trafficHistory.push(30 + Math.random() * 50);
+        }
+
+        function drawChart() {
+            const w = chartWidth;
+            const h = chartHeight;
+            const pad = { top: 16, right: 8, bottom: 24, left: 34 };
+            const plotW = w - pad.left - pad.right;
+            const plotH = h - pad.top - pad.bottom;
+            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid lines
+            ctx.strokeStyle = isLight ? 'rgba(226, 232, 240, 1)' : 'rgba(38, 48, 73, 0.5)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (plotH / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(w - pad.right, y);
+                ctx.stroke();
+
+                ctx.fillStyle = isLight ? '#94a3b8' : '#475569';
+                ctx.font = '10px Inter';
+                ctx.textAlign = 'right';
+                ctx.fillText(Math.round(100 - (100 / 4) * i), pad.left - 6, y + 3);
+            }
+
+            // Data points
+            const data = trafficHistory.slice(-40);
+            const step = plotW / (data.length - 1);
+
+            // Area fill
+            const color = networkMode === '5G' ? (isLight ? '59, 130, 246' : '96, 165, 250') : (isLight ? '249, 115, 22' : '251, 146, 60');
+            const gradient = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+            
+            gradient.addColorStop(0, `rgba(${color}, 0.2)`);
+            gradient.addColorStop(1, `rgba(${color}, 0)`);
+
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top + plotH - (data[0] / 100) * plotH);
+            for (let i = 1; i < data.length; i++) {
+                const x = pad.left + i * step;
+                const y = pad.top + plotH - (data[i] / 100) * plotH;
+                const px = pad.left + (i - 1) * step;
+                const py = pad.top + plotH - (data[i - 1] / 100) * plotH;
+                const cpx = (px + x) / 2;
+                ctx.bezierCurveTo(cpx, py, cpx, y, x, y);
+            }
+            ctx.lineTo(pad.left + (data.length - 1) * step, pad.top + plotH);
+            ctx.lineTo(pad.left, pad.top + plotH);
+            ctx.closePath();
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Line
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top + plotH - (data[0] / 100) * plotH);
+            for (let i = 1; i < data.length; i++) {
+                const x = pad.left + i * step;
+                const y = pad.top + plotH - (data[i] / 100) * plotH;
+                const px = pad.left + (i - 1) * step;
+                const py = pad.top + plotH - (data[i - 1] / 100) * plotH;
+                const cpx = (px + x) / 2;
+                ctx.bezierCurveTo(cpx, py, cpx, y, x, y);
+            }
+            ctx.strokeStyle = `rgb(${color})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Dot at latest
+            const lastX = pad.left + (data.length - 1) * step;
+            const lastY = pad.top + plotH - (data[data.length - 1] / 100) * plotH;
+            ctx.beginPath();
+            ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+            ctx.fillStyle = `rgb(${color})`;
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(lastX, lastY, 7, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(${color}, 0.25)`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = isLight ? '#64748b' : '#475569';
+            ctx.font = '10px Inter';
+            ctx.textAlign = 'center';
+            const timeLabels = ['40s', '30s', '20s', '10s', 'Now'];
+            for (let i = 0; i < timeLabels.length; i++) {
+                const x = pad.left + (plotW / (timeLabels.length - 1)) * i;
+                ctx.fillText(timeLabels[i], x, h - 6);
+            }
+        }
+
+        // ── Feed ──
+        function addFeedItem(type, message) {
+            const time = new Date().toLocaleTimeString();
+            feedItems.unshift({ type, message, time });
+            if (feedItems.length > 30) feedItems.pop();
+            renderFeed();
+        }
+
+        function renderFeed() {
+            const list = document.getElementById('feed-list');
+            list.innerHTML = feedItems.map(f => `
+                <div class="feed-item">
+                    <div class="feed-dot ${f.type}"></div>
+                    <div>
+                        <div class="feed-text">${f.message}</div>
+                        <div class="feed-time">${f.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ── Simulation Loop ──
+        function simulateTraffic() {
+            const zone = zones[Math.floor(Math.random() * zones.length)];
+            const vehicleCount = 10 + Math.floor(Math.random() * 90);
+            const avgSpeed = 20 + Math.floor(Math.random() * 60);
+            const status = vehicleCount >= 80 ? 'CONGESTED' : 'NORMAL';
+
+            trafficHistory.push(vehicleCount);
+            if (trafficHistory.length > 60) trafficHistory.shift();
+
+            document.getElementById('stat-speed').textContent = avgSpeed + ' km/h';
+            const delta = (Math.random() * 6 - 3).toFixed(1);
+            document.getElementById('delta-speed').innerHTML = (delta >= 0 ? '▲ ' : '▼ ') + Math.abs(delta) + '% vs last hr';
+            document.getElementById('delta-speed').className = delta >= 0 ? 'stat-delta up' : 'stat-delta down';
+
+            if (vehicleCount >= 80) {
+                addFeedItem('traffic', `<strong>🚦 CONGESTION</strong> in <strong>${zone}</strong> — ${vehicleCount} vehicles, ${avgSpeed} km/h`);
+            } else if (Math.random() < 0.3) {
+                addFeedItem('traffic', `Traffic <strong>${zone}</strong>: ${vehicleCount} @ ${avgSpeed} km/h — <strong>${status}</strong>`);
+            }
+        }
+
+        function simulateWaste() {
+            const bin = bins[Math.floor(Math.random() * bins.length)];
+            const fillLevel = Math.floor(Math.random() * 100);
+            const battery = 20 + Math.floor(Math.random() * 80);
+
+            const threshold = networkMode === '5G' ? 10 : 80;
+            const criticalCount = Math.floor(Math.random() * 3) + 1;
+            document.getElementById('stat-waste').textContent = `${criticalCount} / 3`;
+
+            if (fillLevel >= 80) {
+                addFeedItem('waste', `<strong>🗑️ ${bin}</strong> at <strong>${fillLevel}%</strong> — collection needed (bat: ${battery}%)`);
+            } else if (fillLevel >= threshold && Math.random() < 0.2) {
+                addFeedItem('waste', `Bin <strong>${bin}</strong>: fill ${fillLevel}%, battery ${battery}%`);
+            }
+        }
+
+        function simulateEmergency() {
+            if (Math.random() < 0.03) {
+                const type = emergencyTypes[Math.floor(Math.random() * emergencyTypes.length)];
+                document.getElementById('stat-emergency').textContent = '1';
+                addFeedItem('emergency', `<strong>🚨 ${type}</strong> — Severity: HIGH — Dispatching responders`);
+
+                setTimeout(() => {
+                    document.getElementById('stat-emergency').textContent = '0';
+                    addFeedItem('emergency', `<strong>✅ ${type} RESOLVED</strong> — Response: ${2 + Math.floor(Math.random() * 6)} min`);
+                }, 8000);
+            }
+        }
+
+        function simulateEdge() {
+            const aggSize = networkMode === '5G' ? 3 : 10;
+            const throughput = networkMode === '5G' ? (10 + Math.random() * 8).toFixed(1) : (1.5 + Math.random() * 3).toFixed(1);
+            document.getElementById('stat-edge').textContent = throughput + ' Mbps';
+            document.getElementById('delta-edge').textContent = networkMode === '5G' ? '📶 Low Latency' : '📱 Bandwidth Saving';
+
+            if (Math.random() < 0.15) {
+                const zone = zones[Math.floor(Math.random() * zones.length)];
+                addFeedItem('edge', `<strong>[EDGE]</strong> Fwd traffic <strong>${zone}</strong> (agg: ${aggSize}) — <strong>${networkMode === '5G' ? '5G' : '4G_FALLBACK'}</strong>`);
+            }
+        }
+
+        // ── Network Toggle ──
+        function setNetwork(mode) {
+            networkMode = mode;
+            const btn5g = document.getElementById('btn-5g');
+            const btn4g = document.getElementById('btn-4g');
+            const navLabel = document.getElementById('nav-network-label');
+
+            if (mode === '5G') {
+                btn5g.className = 'toggle-btn active-5g';
+                btn4g.className = 'toggle-btn';
+                navLabel.textContent = '5G';
+                navLabel.style.color = 'var(--accent-green)';
+                addFeedItem('network', '<strong>📶 NETWORK:</strong> Switched to <strong>5G</strong> — Full resolution');
+            } else {
+                btn5g.className = 'toggle-btn';
+                btn4g.className = 'toggle-btn active-4g';
+                navLabel.textContent = '4G';
+                navLabel.style.color = 'var(--accent-orange)';
+                addFeedItem('network', '<strong>📱 NETWORK:</strong> Switched to <strong>4G_FALLBACK</strong> — Bandwidth saving');
+            }
+        }
+
+        // ── Pipeline Animation ──
+        let pipelineRunning = false;
+
+        function runPipelineAnimation() {
+            if (pipelineRunning) return;
+            pipelineRunning = true;
+            document.getElementById('pipeline-play-btn').textContent = '⏳ Running...';
+
+            const nodes = ['pipe-sensor', 'pipe-mqtt', 'pipe-edge', 'pipe-service', 'pipe-gateway', 'pipe-dashboard'];
+            const arrows = ['arrow-1', 'arrow-2', 'arrow-3', 'arrow-4', 'arrow-5'];
+            const consoleEl = document.getElementById('console-output');
+
+            const zone = zones[Math.floor(Math.random() * zones.length)];
+            const vehicleCount = 10 + Math.floor(Math.random() * 90);
+            const avgSpeed = 20 + Math.floor(Math.random() * 60);
+            const aggThreshold = networkMode === '5G' ? 3 : 10;
+
+            const messages = [
+                { delay: 0, node: 0, log: `<span class="log-ok">[SENSOR]</span> Zone ${zone}: { vehicles: ${vehicleCount}, speed: ${avgSpeed} }` },
+                { delay: 800, node: 0, arrow: 0, log: `<span class="log-info">[MQTT]</span> Pub → raw/traffic/${zone}` },
+                { delay: 1600, node: 1, log: `<span class="log-info">[MQTT]</span> Routed via Mosquitto :1883` },
+                { delay: 2400, node: 1, arrow: 1, log: `<span class="log-edge">[EDGE]</span> Received → Buffer ${zone}` },
+                { delay: 3200, node: 2, log: `<span class="log-edge">[EDGE]</span> ${networkMode} | Threshold: ${aggThreshold} | Buffer: ${Math.min(aggThreshold, vehicleCount % aggThreshold + 1)}/${aggThreshold}` },
+                { delay: 4000, node: 2, arrow: 2, log: `<span class="log-ok">[EDGE]</span> Aggregated → city/traffic/${zone}` },
+                { delay: 4800, node: 3, log: `<span class="log-info">[SVC]</span> Processing: avg=${vehicleCount}, ${vehicleCount >= 80 ? 'CONGESTED' : 'NORMAL'}` },
+                { delay: 5600, node: 3, arrow: 3, log: `<span class="log-info">[GW]</span> REST + WS broadcast queued` },
+                { delay: 6400, node: 4, log: `<span class="log-ok">[GW]</span> WS → { type: "TRAFFIC_UPDATE", zone: "${zone}" }` },
+                { delay: 7200, node: 4, arrow: 4, log: `<span class="log-ok">[DASH]</span> React UI updated, chart redrawn` },
+                { delay: 8000, node: 5, log: `<span class="log-ok">[DONE]</span> ✅ Pipeline executed in ~${(Math.random() * 50 + 120).toFixed(0)}ms` },
+            ];
+
+            // Clear
+            nodes.forEach(n => document.getElementById(n).classList.remove('active'));
+            arrows.forEach(a => document.getElementById(a).classList.remove('active'));
+            consoleEl.innerHTML = '';
+
+            // Auto-scroll pipeline to show active node
+            const pipelineEl = document.getElementById('pipeline-visual');
+
+            messages.forEach(m => {
+                setTimeout(() => {
+                    nodes.forEach(n => document.getElementById(n).classList.remove('active'));
+                    document.getElementById(nodes[m.node]).classList.add('active');
+
+                    // Scroll pipeline node into view on mobile
+                    const activeNode = document.getElementById(nodes[m.node]);
+                    activeNode.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+                    if (m.arrow !== undefined) {
+                        document.getElementById(arrows[m.arrow]).classList.add('active');
+                    }
+
+                    consoleEl.innerHTML += m.log + '\n';
+                    consoleEl.scrollTop = consoleEl.scrollHeight;
+
+                    if (m.node === 5) {
+                        setTimeout(() => {
+                            pipelineRunning = false;
+                            document.getElementById('pipeline-play-btn').textContent = '▶ Run Pipeline Demo';
+                            nodes.forEach(n => document.getElementById(n).classList.remove('active'));
+                            arrows.forEach(a => document.getElementById(a).classList.remove('active'));
+                        }, 2000);
+                    }
+                }, m.delay);
+            });
+        }
+
+        // ── AI Insight rotation ──
+        function rotateInsight() {
+            currentInsightIdx = (currentInsightIdx + 1) % aiInsights.length;
+            const el = document.getElementById('ai-insight');
+            el.style.opacity = 0;
+            setTimeout(() => {
+                el.textContent = aiInsights[currentInsightIdx];
+                el.style.opacity = 1;
+            }, 300);
+        }
+
+        // ── Scroll Reveal ──
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // ── Main Loop ──
+        function tick() {
+            simulateTraffic();
+            simulateWaste();
+            simulateEmergency();
+            simulateEdge();
+            drawChart();
+        }
+
+        // Initialize
+        drawChart();
+        addFeedItem('edge', '<strong>🌍 Edge Node</strong> online — Mode: 5G');
+        addFeedItem('traffic', 'System initialized. Monitoring <strong>4 zones</strong>.');
+
+        // Run simulation
+        setInterval(tick, 2000);
+        setInterval(rotateInsight, 12000);
+
+        // Handle resize
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                setupCanvas();
+                drawChart();
+            }, 150);
+        });
+    </script>
+</body>
+</html>
