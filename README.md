@@ -13,6 +13,7 @@ NexaCity is a state-of-the-art smart city infrastructure platform that bridges t
 NexaCity operates on a highly decoupled microservices architecture designed for real-time data ingestion and low-latency response. The following block diagram illustrates the end-to-end data pipeline from physical sensors to the user interface.
 
 ```mermaid
+%%{init: {'theme': 'default', 'themeVariables': { 'background': '#ffffff'}}}%%
 flowchart TD
     classDef physical fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff
     classDef mqtt fill:#d97706,stroke:#b45309,stroke-width:2px,color:#fff
