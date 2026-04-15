@@ -13,15 +13,16 @@ NexaCity is a state-of-the-art smart city infrastructure platform that bridges t
 NexaCity operates on a highly decoupled microservices architecture designed for real-time data ingestion and low-latency response. The following block diagram illustrates the end-to-end data pipeline from physical sensors to the user interface.
 
 ```mermaid
-%%{init: {'theme': 'default', 'themeVariables': { 'background': '#ffffff'}}}%%
+%%{init: {'theme': 'default', 'themeVariables': { 'background': '#ffffff', 'fontSize': '16px', 'fontFamily': 'arial'}}}%%
 flowchart TD
-    classDef physical fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff
-    classDef mqtt fill:#d97706,stroke:#b45309,stroke-width:2px,color:#fff
-    classDef edge fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
-    classDef service fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    classDef gateway fill:#7c3aed,stroke:#6d28d9,stroke-width:2px,color:#fff
-    classDef ui fill:#db2777,stroke:#be185d,stroke-width:2px,color:#fff
-    classDef db fill:#0891b2,stroke:#0e7490,stroke-width:2px,color:#fff
+    classDef physical fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff,font-size:16px,font-weight:bold
+    classDef mqtt fill:#d97706,stroke:#b45309,stroke-width:2px,color:#fff,font-size:16px,font-weight:bold
+    classDef edge fill:#059669,stroke:#047857,stroke-width:2px,color:#fff,font-size:16px,font-weight:bold
+    classDef service fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff,font-size:16px,font-weight:bold
+    classDef gateway fill:#7c3aed,stroke:#6d28d9,stroke-width:2px,color:#fff,font-size:16px,font-weight:bold
+    classDef ui fill:#db2777,stroke:#be185d,stroke-width:2px,color:#fff,font-size:16px,font-weight:bold
+    classDef db fill:#0891b2,stroke:#0e7490,stroke-width:2px,color:#fff,font-size:16px,font-weight:bold
+
 
     subgraph Tier1 ["1. Physical IoT Layer"]
         HW[ESP32 Node]:::physical
