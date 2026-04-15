@@ -8,6 +8,31 @@ NexaCity is a state-of-the-art smart city infrastructure platform that bridges t
 
 ---
 
+## 💻 Technology Stack
+
+**Frontend & Authentication**
+- **Web Dashboard**: React.js (Vite), Real-time WebSockets, Glassmorphism UI
+- **Mobile App**: React Native 
+- **User Verification**: Firebase Authentication (Role-Based Access Control)
+
+**Backend Microservices**
+- **Gateway & APIs**: Node.js / Express.js
+- **Data Processing**: Python (Adaptive Edge Node)
+- **IoT Message Broker**: Eclipse Mosquitto (MQTT Protocol)
+
+**Data Layer**
+- **Primary Database**: PostgreSQL (with PostGIS for spatial mapping)
+- **High-Speed Cache**: Redis (For socket bridging and traffic states)
+
+**Hardware & Edge Devices**
+- **Microcontrollers**: ESP32 / Arduino / NodeMCU ESP8266
+- **Sensors**: HC-SR04 (Ultrasonic), HC-SR501 (PIR Motion), ESP32-CAM / OV7670
+
+**Infrastructure**
+- **Containerization**: Docker & Docker Compose
+
+---
+
 ## 🏗️ System Architecture & Block Diagram
 
 NexaCity operates on a highly decoupled microservices architecture designed for real-time data ingestion and low-latency response. The following block diagram illustrates the end-to-end data pipeline from physical sensors to the user interface.
