@@ -6,11 +6,11 @@
 // ---------------------------------------------------------
 
 // Wi-Fi Credentials
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+const char* ssid = "Test123";
+const char* password = "12345678";
 
 // MQTT Broker (Your PC's IP address)
-const char* mqtt_server = "192.168.1.15"; // <-- CHANGE THIS TO YOUR HOST IP
+const char* mqtt_server = "10.132.154.193"; // <-- CHANGE THIS TO YOUR HOST IP
 const int mqtt_port = 1883;
 
 // Topic Configurations
