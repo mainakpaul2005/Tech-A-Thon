@@ -1,89 +1,102 @@
-# NexaCity | Smart Infrastructure Platform
+# 🏙️ NexaCity | 5G-Enabled Smart Urban Ecosystem
 
-NexaCity is a comprehensive smart city management ecosystem designed to optimize urban infrastructure through real-time IoT monitoring, AI-driven traffic management, and secure administrative control.
+![Project Version](https://img.shields.io/badge/Version-1.2.0--Hardware--Sync-blue?style=for-the-badge&logo=iot)
+![5G Ready](https://img.shields.io/badge/Network-5G_Adaptive-06b6d4?style=for-the-badge&logo=5g)
+![Docker](https://img.shields.io/badge/Architecture-Microservices-2496ed?style=for-the-badge&logo=docker)
 
-## 🚀 Key Features
+NexaCity is a state-of-the-art smart city infrastructure platform that bridges the gap between physical IoT hardware and AI-driven urban management. Built for high-stakes hackathon demos, it features real-time 5G telemetry, adaptive edge computing, and a premium glassmorphic dashboard.
 
-- **Smart Traffic Command Center**: Real-time traffic flow monitoring with automated signal override and emergency corridor clearing.
-- **Cross-Platform Dashboards**: Sleek, responsive interfaces for both Web (Vite/React) and Mobile (React Native/Expo).
-- **Secure Authentication**: Robust role-based access control (RBAC) powered by Firebase.
-- **IoT & Edge Integration**: Support for physical hardware (ESP8266) and simulated data with 5G/4G fallback logic.
-- **AI Autonomous Incident Detection**: Real-time video analysis via Gemini Vision API to detect accidents or anti-social activities. It utilizes automated Twilio emergency calling with (future) dynamic location-aware dispatching based on regional authorities.
-- **Real-time Analytics**: Live weather integration and sensor data visualization via WebSockets.
+---
 
-## 📁 Project Structure
+## 🚀 Key Innovation Pillars
 
-```text
-├── frontend/        # React-based web dashboard (Vite)
-├── mobile/          # React Native mobile application (Expo)
-├── hardware/        # ESP8266 firmware and sensor configurations
-├── tests/           # End-to-end pipeline validation scripts
-├── services/        # Back-end microservices
-│   └── ai_incident_service/  # AI vision analysis agent (Gemini + Twilio)
-└── docs/            # Hardware specs, scalability plans, and design logs
-```
+### 📡 5G Adaptive Edge Computing
+NexaCity utilize a custom **Adaptive Edge Node** (`edge_node.py`) that monitors network conditions.
+- **5G Mode**: High-resolution, instantaneous data forwarding for real-time traffic signal adjustments.
+- **4G Fallback**: Aggregates telemetry to conserve bandwidth while maintaining city-wide monitoring.
 
-## 🛠️ Tech Stack
+### 🚦 Smart Traffic Command Center
+Beyond simple monitoring, NexaCity provides:
+- **Sustained Traffic Detection**: Automated **Red Alerts** triggered by 30-second continuous vehicle detection (synchronized with hardware PIR reset times).
+- **Emergency Corridor Clearing**: Instant manual signal override for first responders.
+- **Traffic Flow Adjectives**: Non-tech friendly status (Smooth, Busy, Crowded) driven by live averages.
 
-- **Frontend**: React, Vite, CSS3 (Glassmorphism), Lucide Icons
-- **Mobile**: React Native, Expo, Firebase Auth
-- **Backend/IoT**: Node.js (Microservices), MQTT, WebSockets, Firebase
-- **AI/Vision**: Python, Gemini Vision API, Twilio Voice API, yt-dlp
-- **Sensors**: Ultrasonic (HC-SR04), Motion (PIR), Weather API
+### 🗑️ Smart Waste Management
+- **30s Status Resolution**: Intelligent dashboard throttling that prevents UI flicker while maintaining strict monitoring of bin fill levels and battery health.
+- **Priority Collection Optimizer**: Predictive bin statuses sorted by urgency.
 
-## 🚦 Getting Started
+---
 
-### Prerequisites
-- Node.js (v18+)
-- npm / yarn
-- Expo Go (for mobile testing)
+## 🛠️ Tech Stack & Architecture
 
-### Installation
+- **Hardware**: ESP32 (32-bit SoC), HC-SR04 (Ultrasonic), PIR (Motion).
+- **Communication**: MQTT (Mosquitto), WebSockets (Real-time Gateway).
+- **Backend**: Node.js Microservices, Python (Adaptive Edge Logic).
+- **Frontend**: React (Vite), Glassmorphism, Premium Dark UI.
+- **Infrastructure**: Docker Compose (7+ interconnected services).
 
-1. **Clone the repository**:
+---
+
+## 🔌 Hardware Setup (ESP32)
+
+Built for high reliability with a "Zero-Resistor" wiring path.
+
+| Component | ESP32 Pin | Purpose |
+| :--- | :--- | :--- |
+| **VCC** | VIN (5V) | Powering Sensors |
+| **GND** | GND | Common Ground |
+| **HC-SR04 Trig** | GPIO 5 | Ultrasonic Trigger |
+| **HC-SR04 Echo** | GPIO 18 | Ultrasonic Echo |
+| **PIR Signal** | GPIO 19 | Motion Detection |
+
+> [!IMPORTANT]
+> **PIR Calibration:** Adjust the 'Delay' potentiometer on your HC-SR501 to the minimum (fully counter-clockwise) to match the **6-second reporting interval** configured in the firmware.
+
+---
+
+## 🐳 Getting Started (Docker)
+
+The entire ecosystem is containerized for "One-Command Deployment."
+
+1. **Clone & Environment**:
    ```bash
    git clone https://github.com/mainakpaul2005/Tech-A-Thon.git
    cd Tech-A-Thon
    ```
 
-2. **Frontend Setup**:
+2. **Sync Settings**:
+   Ensure your `.env` contains the MQTT server's local IP for the hardware.
+
+3. **Deploy Infrastructure**:
    ```bash
-   cd frontend
-   npm install
-   npm run dev
+   docker-compose up -d --build
    ```
 
-3. **AI Service Setup**:
-   ```bash
-   cd ../services/ai_incident_service
-   pip install -r requirements.txt
-   python server.py
-   ```
-
-4. **Mobile Setup**:
-   ```bash
-   cd ../../mobile
-   npm install
-   npx expo start
-   ```
-
-## ⚙️ Configuration
-
-A global `.env` file is maintained at the project root. This file contains shared keys for Firebase, Gemini, and Twilio.
-
-To apply changes from the root `.env` to all sub-modules:
-```bash
-node scripts/sync-env.js
-```
-The AI Python service automatically checks the root `.env` if a local one is not present.
-
-> [!NOTE]
-> Emergency contacts (Ambulance/Police) are currently configured statically in `.env`. Future versions will implement a dynamic lookup service that fetches local authority numbers based on GPS/locality input.
-
-## 📄 Documentation
-- [Implementation Plan](Plan.md)
-- [Hardware Specifications](hardware.md)
-- [Scalability Roadmap](SCALABILITY.md)
+4. **Access Dashboard**:
+   Open `http://localhost:8080` in your browser.
 
 ---
-Developed for the **Tech-A-Thon** Hackathon.
+
+## 📂 Project Anatomy
+
+```text
+├── frontend/        # React Dashboard (Vite) - Live WebSocket telemetry
+├── hardware/        # ESP32 Firmware (6s reporting sync)
+├── services/
+│   ├── gateway/     # MQTT-to-WebSocket Bridge (3000)
+│   ├── edge/        # Adaptive Edge Node (5G/4G Logic)
+│   ├── traffic/     # Traffic Status Microservice
+│   └── waste/       # Waste Management Microservice
+├── infra/           # Mosquitto & DB configurations
+└── docker-compose.yml # Orchestration layer
+```
+
+---
+
+## 📄 Documentation & Workflows
+- [Implementation Walkthrough](walkthrough.md) - *Detailed integration steps*
+- [Scalability Roadmap](SCALABILITY.md) - *Planned future expansions*
+- [Implementation Plan](implementation_plan.md) - *Wiring & Logic specs*
+
+---
+Developed with ❤️ by **Mainak Paul** for the **Tech-A-Thon** Hackathon.

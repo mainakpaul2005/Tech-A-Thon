@@ -33,7 +33,7 @@ def on_message(client, userdata, msg):
     # Strategy: Change aggregation depth based on network mode
     # 5G -> Low aggregation (High data resolution)
     # 4G -> High aggregation (Bandwidth conservation)
-    agg_threshold = 3 if network_mode == "5G" else 10
+    agg_threshold = 1 if network_mode == "5G" else 10
 
     if "raw/traffic" in topic:
         zone = payload.get("zone_id")
@@ -43,7 +43,7 @@ def on_message(client, userdata, msg):
         traffic_buffer[zone].append(payload.get("vehicle_count"))
         
         if len(traffic_buffer[zone]) >= agg_threshold:
-            avg_count = sum(traffic_buffer[zone]) / len(traffic_buffer[zone])
+            avg_count = round(sum(traffic_buffer[zone]) / len(traffic_buffer[zone]), 1)
             processed_payload = {
                 "zone_id": zone,
                 "avg_vehicle_count": avg_count,
@@ -66,7 +66,7 @@ def on_message(client, userdata, msg):
         client.publish(topic.replace("raw/", "city/"), msg.payload)
         print("🚨 PRIORITY: Emergency alert passed through immediately")
 
-client = mqtt.Client("Edge_Node_Adaptive")
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "Edge_Node_Adaptive")
 client.on_connect = on_connect
 client.on_message = on_message
 

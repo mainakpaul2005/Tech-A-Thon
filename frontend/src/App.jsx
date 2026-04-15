@@ -142,8 +142,13 @@ class EdgeNodeSimulator {
 // ═══════════════════════════════════════════════════
 
 function useRealtimePipeline(enabled, networkMode) {
-  const [logs, setLogs] = useState([]);
+  const [trafficLogs, setTrafficLogs] = useState([]);
+  const [wasteLogs, setWasteLogs] = useState([]);
+  const lastWasteLogTime = useRef(0);
   const [trafficHistory, setTrafficHistory] = useState([]);
+  const [trafficWindow, setTrafficWindow] = useState([]); // 30s rolling window
+  const [totalVehicleCount, setTotalVehicleCount] = useState(0);
+  const [heavyTrafficActive, setHeavyTrafficActive] = useState(false);
   const [wasteStatus, setWasteStatus] = useState({});
   const [activeEmergencies, setActiveEmergencies] = useState([]);
   const [pipelineStats, setPipelineStats] = useState({
@@ -162,13 +167,27 @@ function useRealtimePipeline(enabled, networkMode) {
   }, [networkMode]);
 
   const addLog = useCallback((type, msg, icon) => {
-    setLogs(prev => [{
+    const logItem = {
       id: Date.now() + Math.random(),
       type,
       msg,
       time: new Date().toLocaleTimeString(),
       icon,
-    }, ...prev.slice(0, 49)]);
+    };
+    if (type === 'traffic') {
+      setTrafficLogs(prev => [logItem, ...prev.slice(0, 14)]);
+    } else if (type === 'waste') {
+      const now = Date.now();
+      if (now - lastWasteLogTime.current >= 30000) {
+        // Friendly message for non-tech users
+        const level = msg.includes('%') ? msg.split(': ')[1] : 'checked';
+        logItem.msg = `Bin ${msg.split(' ')[0]} is currently ${level}`;
+        setWasteLogs(prev => [logItem, ...prev.slice(0, 14)]);
+        lastWasteLogTime.current = now;
+      }
+    } else {
+      setTrafficLogs(prev => [logItem, ...prev.slice(0, 14)]);
+    }
   }, []);
 
   useEffect(() => {
@@ -187,11 +206,29 @@ function useRealtimePipeline(enabled, networkMode) {
           if (data.type === 'WELCOME') {
             addLog('edge', data.message, '✅');
           } else if (data.type === 'TRAFFIC_UPDATE') {
-            setTrafficHistory(prev => [...prev.slice(-23), {
-              time: new Date().toLocaleTimeString(),
-              flow: data.avg_vehicle_count,
-              zone: data.zone_id,
-            }]);
+            const now = Date.now();
+            setTotalVehicleCount(prev => prev + data.avg_vehicle_count);
+            
+            setTrafficWindow(prevWindow => {
+              const updatedWindow = [...prevWindow.filter(t => now - t.timestamp < 30000), { ...data, timestamp: now }];
+              const last5 = updatedWindow.slice(-5);
+              if (last5.length >= 5 && last5.every(t => t.avg_vehicle_count > 0)) {
+                setHeavyTrafficActive(true);
+              } else {
+                setHeavyTrafficActive(false);
+              }
+              return updatedWindow;
+            });
+
+            setPipelineStats(prev => ({ ...prev, messagesProcessed: prev.messagesProcessed + 1 }));
+            addLog('traffic', `${data.zone_id}: Detected vehicle movement`, '🚦');
+          } else if (data.type === 'WASTE_UPDATE') {
+            setWasteStatus(prev => ({ ...prev, [data.bin_id]: data }));
+            if (data.fill_level >= 80) {
+              addLog('waste', `⚠️ ${data.bin_id} critical: ${data.fill_level}% full`, '🗑️');
+            } else {
+              addLog('waste', `${data.bin_id} level updated: ${data.fill_level}%`, '🗑️');
+            }
           }
         } catch (e) { /* ignore malformed */ }
       };
@@ -202,73 +239,23 @@ function useRealtimePipeline(enabled, networkMode) {
       setWsConnected(false);
     }
 
-    // Simulated pipeline (always runs — provides demo data)
+    // Simulated pipeline disabled - Only real data from WebSocket/Backend will be used.
+    /*
     const interval = setInterval(() => {
-      const edge = edgeRef.current;
-      let processed = 0;
-      let filtered = 0;
-
-      // Generate traffic for random zone
-      const zone = ZONES[Math.floor(Math.random() * ZONES.length)];
-      const trafficRaw = generateTrafficReading(zone);
-      const trafficResult = edge.processTraffic(trafficRaw);
-      processed++;
-      
-      if (trafficResult) {
-        setTrafficHistory(prev => [...prev.slice(-23), {
-          time: new Date().toLocaleTimeString(),
-          flow: trafficResult.avg_vehicle_count,
-          zone: trafficResult.zone_id,
-        }]);
-        addLog('traffic', `${zone}: Avg ${trafficResult.avg_vehicle_count} vehicles (${trafficResult.mode})`, '🚦');
-      } else {
-        filtered++;
-      }
-
-      // Generate waste
-      const bin = BINS[Math.floor(Math.random() * BINS.length)];
-      const wasteRaw = generateWasteReading(bin);
-      const wasteResult = edge.processWaste(wasteRaw);
-      processed++;
-
-      if (wasteResult) {
-        setWasteStatus(prev => ({ ...prev, [bin]: wasteResult }));
-        if (wasteResult.fill_level >= 80) {
-          addLog('waste', `⚠️ ${bin} critical: ${wasteResult.fill_level}% full`, '🗑️');
-        }
-      } else {
-        filtered++;
-      }
-
-      // Generate emergency (rare)
-      const emergencyRaw = generateEmergency();
-      if (emergencyRaw) {
-        const emergencyResult = edge.processEmergency(emergencyRaw);
-        if (emergencyResult) {
-          addLog('emergency', `🚨 ${emergencyResult.type} alert — Severity: ${emergencyResult.severity}`, '🚨');
-          setActiveEmergencies(prev => [emergencyResult, ...prev.slice(0, 4)]);
-          setPipelineStats(prev => ({
-            ...prev,
-            emergenciesForwarded: prev.emergenciesForwarded + 1,
-          }));
-        }
-      }
-
-      setPipelineStats(prev => ({
-        ...prev,
-        messagesProcessed: prev.messagesProcessed + processed,
-        messagesFiltered: prev.messagesFiltered + filtered,
-        avgLatency: Math.floor(Math.random() * 5) + (networkMode === '5G' ? 2 : 15),
-      }));
+      // ... simulation logic ...
     }, 2000);
 
     return () => {
       clearInterval(interval);
       if (wsRef.current) wsRef.current.close();
     };
+    */
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+    };
   }, [enabled, networkMode, addLog]);
 
-  return { logs, trafficHistory, wasteStatus, activeEmergencies, pipelineStats, wsConnected };
+  return { trafficLogs, wasteLogs, trafficHistory, trafficWindow, totalVehicleCount, heavyTrafficActive, wasteStatus, activeEmergencies, pipelineStats, wsConnected };
 }
 
 
@@ -320,7 +307,7 @@ const INTERSECTION_DATA = [
   { id: 'INT-06', name: 'Rajarhat Chowmatha', zone: 'Z4', lat: 22.6140, lng: 88.4690 },
 ];
 
-const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficHistory }) => {
+const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficWindow, totalVehicleCount, heavyTrafficActive }) => {
   // Signal states per intersection
   const [signals, setSignals] = useState(() => {
     const init = {};
@@ -328,11 +315,11 @@ const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficHistory }) =>
       init[i.id] = {
         current: 'GREEN',
         greenDuration: 45,
-        mode: 'AUTO',         // AUTO | MANUAL | EMERGENCY
-        vehicleCount: Math.floor(Math.random() * 80) + 10,
-        avgSpeed: Math.floor(Math.random() * 40) + 20,
-        congestion: Math.random(),
-        queueLength: Math.floor(Math.random() * 30),
+        mode: 'AUTO',
+        vehicleCount: 0,
+        avgSpeed: 40,
+        congestion: 0,
+        queueLength: 0,
         lastUpdate: new Date(),
       };
     });
@@ -350,38 +337,40 @@ const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficHistory }) =>
   const [corridorActive, setCorridorActive] = useState(null);
   const [incidents, setIncidents] = useState([]);
 
-  // Simulate live IoT sensor updates
+  // Update signals based on real trafficWindow (30s volume)
   useEffect(() => {
     const interval = setInterval(() => {
       setSignals(prev => {
         const next = { ...prev };
         INTERSECTION_DATA.forEach(i => {
           const s = { ...next[i.id] };
-          // Simulate fluctuating sensor data
-          s.vehicleCount = Math.max(5, s.vehicleCount + Math.floor(Math.random() * 20 - 10));
-          s.avgSpeed = Math.max(5, Math.min(80, s.avgSpeed + Math.floor(Math.random() * 10 - 5)));
-          s.congestion = Math.min(1, Math.max(0, s.vehicleCount / 100));
-          s.queueLength = Math.max(0, Math.floor(s.vehicleCount * 0.4));
+          
+          // Calculate 30s volume for this zone from hardware
+          const zoneVolume = trafficWindow
+            .filter(t => t.zone_id === i.zone)
+            .reduce((a, b) => a + b.avg_vehicle_count, 0);
+
+          s.vehicleCount = Math.round(zoneVolume); 
+          s.avgSpeed = 40; 
+          s.congestion = Math.min(1, s.vehicleCount / 10);
+          s.queueLength = Math.max(0, Math.floor(s.vehicleCount * 0.5));
           s.lastUpdate = new Date();
 
-          // AUTO mode: AI-driven signal switching
+          // AUTO mode logic
           if (s.mode === 'AUTO') {
-            if (s.congestion > 0.8) {
-              s.current = 'GREEN';
-              s.greenDuration = 60;
-            } else if (s.congestion > 0.5) {
-              s.greenDuration = 45;
+            if (s.congestion > 0.7) {
+              s.current = 'RED'; // Turn RED if congested to clear cross-traffic
             } else {
-              s.greenDuration = 30;
+              s.current = 'GREEN';
             }
           }
           next[i.id] = s;
         });
         return next;
       });
-    }, 3000);
+    }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [trafficWindow]);
 
   const overrideSignal = (intId, newState) => {
     setSignals(prev => ({
@@ -437,7 +426,7 @@ const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficHistory }) =>
     setRules(prev => prev.map(r => r.id === ruleId ? { ...r, enabled: !r.enabled } : r));
   };
 
-  const totalVehicles = Object.values(signals).reduce((a, s) => a + s.vehicleCount, 0);
+  const totalVehicles = totalVehicleCount;
   const avgCongestion = Object.values(signals).reduce((a, s) => a + s.congestion, 0) / INTERSECTION_DATA.length;
   const emergencyCount = Object.values(signals).filter(s => s.mode === 'EMERGENCY').length;
   const manualCount = Object.values(signals).filter(s => s.mode === 'MANUAL').length;
@@ -489,17 +478,17 @@ const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficHistory }) =>
 
       {/* KPI Strip */}
       <section className="grid-stats">
-        <StatCard title="Total Vehicles" value={totalVehicles} icon={Truck} color="var(--accent-blue)"
-          delta={`${INTERSECTION_DATA.length} intersections`} deltaUp={true} />
-        <StatCard title="Avg Congestion" value={`${Math.round(avgCongestion * 100)}%`} icon={Gauge} 
-          color={avgCongestion > 0.7 ? 'var(--accent-red)' : avgCongestion > 0.4 ? 'var(--accent-orange)' : 'var(--accent-green)'}
-          delta={avgCongestion > 0.7 ? 'Heavy' : avgCongestion > 0.4 ? 'Moderate' : 'Smooth'}
-          deltaUp={avgCongestion <= 0.4} />
-        <StatCard title="Manual Override" value={manualCount} icon={Settings2} color="var(--accent-orange)"
-          delta={`${emergencyCount} emergency`} deltaUp={emergencyCount === 0} />
-        <StatCard title="Signal Latency" value={`${pipelineStats.avgLatency}ms`} icon={Timer} 
+        <StatCard title="Total Vehicles Today" value={totalVehicles} icon={Truck} color="var(--accent-blue)"
+          delta="Real-time Count" deltaUp={true} />
+        <StatCard title="Traffic Activity" value={heavyTrafficActive ? 'HEAVY TRAFFIC' : (avgCongestion > 0.4 ? 'Busy' : 'Smooth')} icon={Gauge} 
+          color={heavyTrafficActive ? 'var(--accent-red)' : (avgCongestion > 0.4 ? 'var(--accent-orange)' : 'var(--accent-green)')}
+          delta={heavyTrafficActive ? '⚠️ RED ALERT' : (avgCongestion > 0.4 ? 'Regular' : 'Clear Road')}
+          deltaUp={!heavyTrafficActive && avgCongestion <= 0.4} />
+        <StatCard title="Manual Overrides" value={manualCount} icon={Settings2} color="var(--accent-orange)"
+          delta={emergencyCount > 0 ? 'Emergency Active' : 'Normal Operations'} deltaUp={emergencyCount === 0} />
+        <StatCard title="Network Status" value={pipelineStats.avgLatency < 10 ? 'Excellent' : 'Stable'} icon={Timer} 
           color={networkMode === '5G' ? 'var(--accent-green)' : 'var(--accent-orange)'}
-          delta={`${networkMode} connection`} deltaUp={networkMode === '5G'} />
+          delta={`${networkMode} Active`} deltaUp={networkMode === '5G'} />
       </section>
 
       {/* Emergency Corridor Panel */}
@@ -759,11 +748,11 @@ const AnalyticsDashboard = ({ trafficHistory, wasteStatus, pipelineStats, networ
 
   // Waste prediction data (simulates analytics service /predict/waste)
   const wastePrediction = BINS.map(bin => {
-    const current = wasteStatus[bin]?.fill_level || Math.floor(Math.random() * 60);
+    const current = wasteStatus[bin]?.fill_level || 0;
     return {
       bin,
       current,
-      daysUntilFull: Math.round((100 - current) / (Math.random() * 15 + 5) * 10) / 10,
+      daysUntilFull: current > 0 ? Math.round((100 - current) / (Math.random() * 10 + 2) * 10) / 10 : 'N/A',
       priority: current >= 80 ? 'HIGH' : current >= 50 ? 'MEDIUM' : 'LOW',
     };
   });
@@ -1032,8 +1021,17 @@ function App() {
   }, [role]);
 
   // ── Real-time Pipeline ──
-  const { logs, trafficHistory, wasteStatus, activeEmergencies, pipelineStats, wsConnected } = 
-    useRealtimePipeline(!!role, networkMode);
+  const { 
+    trafficLogs, 
+    wasteLogs, 
+    trafficHistory, 
+    trafficWindow, 
+    totalVehicleCount, 
+    wasteStatus, 
+    activeEmergencies, 
+    pipelineStats, 
+    wsConnected 
+  } = useRealtimePipeline(!!role, networkMode);
 
   if (authLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#0f172a', color: '#fff' }}>Loading...</div>;
 
@@ -1172,7 +1170,7 @@ function App() {
 
           <div className="status-badge">
             <div className="pulse" style={{ backgroundColor: wsConnected ? 'var(--accent-green)' : 'var(--accent-orange)' }}></div>
-            <span>{wsConnected ? 'WS LIVE' : 'SIMULATED'}</span>
+            <span>{wsConnected ? 'SYSTEM ACTIVE' : 'SIMULATED'}</span>
           </div>
           <button onClick={handleLogout} style={{ padding: '6px 12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Logout</button>
         </div>
@@ -1260,46 +1258,58 @@ function App() {
               </div>
             </div>
 
-            {/* Real-time Operations Feed — now LIVE from pipeline */}
-            <div className="card" id="operations-feed">
-              <h3 style={{ marginBottom: '1rem', fontSize: '0.95rem' }}>
-                🔔 Live Operations Feed
-                <span style={{ fontSize: '0.65rem', marginLeft: 8, color: 'var(--accent-green)', fontWeight: 500 }}>
-                  {wsConnected ? '● WebSocket' : '● Simulated Pipeline'}
-                </span>
-              </h3>
-              <div className="feed-container">
-                {logs.length === 0 ? (
-                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    Waiting for pipeline data...
-                  </div>
-                ) : (
-                  logs.map(log => (
-                    <div key={log.id} className="feed-item">
-                      <div className="feed-icon" style={{
-                        backgroundColor: 
-                          log.type === 'traffic' ? '#60a5fa18' :
-                          log.type === 'waste'   ? '#fb923c18' :
-                          log.type === 'emergency' ? '#f8717118' :
-                          '#22d3ee18',
-                        color: 
-                          log.type === 'traffic' ? '#60a5fa' :
-                          log.type === 'waste'   ? '#fb923c' :
-                          log.type === 'emergency' ? '#f87171' :
-                          '#22d3ee',
-                      }}>
-                        {log.type === 'traffic' && <Truck size={16} />}
-                        {log.type === 'waste' && <Trash2 size={16} />}
-                        {log.type === 'emergency' && <AlertTriangle size={16} />}
-                        {log.type === 'edge' && <Zap size={16} />}
-                      </div>
-                      <div className="feed-content">
-                        <h4>{log.msg}</h4>
-                        <p>{log.time}</p>
-                      </div>
+            {/* Split Notification Areas: Traffic and Waste */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+              {/* Traffic Feed (Fast/Live) */}
+              <div className="card" id="traffic-feed">
+                <h3 style={{ marginBottom: '1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Truck size={16} color="var(--accent-blue)" />
+                  Live Traffic Tracker
+                  <span style={{ fontSize: '0.6rem', color: 'var(--accent-green)', fontWeight: 500 }}>Live Feed</span>
+                </h3>
+                <div className="feed-container" style={{ maxHeight: 250 }}>
+                  {trafficLogs.length === 0 ? (
+                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      Waiting for car detection...
                     </div>
-                  ))
-                )}
+                  ) : (
+                    trafficLogs.map(log => (
+                      <div key={log.id} className="feed-item">
+                        <div className="feed-icon" style={{ backgroundColor: '#60a5fa18', color: '#60a5fa' }}>{log.icon}</div>
+                        <div className="feed-content">
+                          <h4>{log.msg}</h4>
+                          <p>{log.time}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Waste Feed (Slow/30s Resolution) */}
+              <div className="card" id="waste-feed">
+                <h3 style={{ marginBottom: '1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Trash2 size={16} color="var(--accent-orange)" />
+                  Bin Status Log
+                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 500 }}>System Healthy</span>
+                </h3>
+                <div className="feed-container" style={{ maxHeight: 250 }}>
+                  {wasteLogs.length === 0 ? (
+                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      Awaiting status check...
+                    </div>
+                  ) : (
+                    wasteLogs.map(log => (
+                      <div key={log.id} className="feed-item">
+                        <div className="feed-icon" style={{ backgroundColor: '#fb923c18', color: '#fb923c' }}>{log.icon}</div>
+                        <div className="feed-content">
+                          <h4>{log.msg}</h4>
+                          <p>{log.time}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </main>
@@ -1371,10 +1381,12 @@ function App() {
 
       {/* ═══ TAB: TRAFFIC COMMAND CENTER (Admin Only) ═══ */}
       {activeTab === 'traffic' && role === 'admin' && (
-        <TrafficCommandCenter
-          pipelineStats={pipelineStats}
-          networkMode={networkMode}
-          trafficHistory={trafficHistory}
+        <TrafficCommandCenter 
+          pipelineStats={pipelineStats} 
+          networkMode={networkMode} 
+          trafficWindow={trafficWindow}
+          totalVehicleCount={totalVehicleCount}
+          heavyTrafficActive={heavyTrafficActive}
         />
       )}
 

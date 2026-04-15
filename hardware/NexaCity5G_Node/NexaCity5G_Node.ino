@@ -33,7 +33,7 @@ PubSubClient client(espClient);
 
 // Timing variables
 unsigned long lastPublishTime = 0;
-const long publishInterval = 5000; // Publish every 5 seconds
+const long publishInterval = 6000; // Publish every 1 second
 
 // Traffic Tracking
 int vehicleCount = 0;

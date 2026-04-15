@@ -105,16 +105,6 @@ services:
       - mosquitto
     restart: always
 
-  # IoT Sensor Simulator
-  sensor-simulator:
-    build: ./simulators
-    container_name: nexacity-simulator
-    environment:
-      - MQTT_BROKER=mosquitto
-    depends_on:
-      - mosquitto
-    restart: always
-
   # Edge Computing Node
   edge-node:
     build: ./services/edge
