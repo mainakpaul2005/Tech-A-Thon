@@ -50,6 +50,7 @@ flowchart TD
 
 
     subgraph Tier1 ["1. Physical IoT Layer"]
+        direction TB
         HW[ESP32 Node]:::physical
         PIR[PIR Motion Sensor]:::physical --> HW
         SONAR[HC-SR04 Ultrasonic]:::physical --> HW
@@ -67,6 +68,7 @@ flowchart TD
     end
 
     subgraph Tier4 ["4. Core Microservices"]
+        direction TB
         TS[Traffic Service]:::service
         WS[Waste Service]:::service
         ES[Emergency Service]:::service
@@ -76,6 +78,7 @@ flowchart TD
     end
 
     subgraph Tier5 ["5. Gateway & Storage"]
+        direction TB
         GW[Gateway / WS Bridge]:::gateway
         DB[(PostgreSQL)]:::db
         REDIS[(Redis Cache)]:::db
@@ -87,6 +90,7 @@ flowchart TD
     end
 
     subgraph Tier6 ["6. Presentation Layer"]
+        direction TB
         UI_WEB[Web Dashboard]:::ui
         UI_MOB[Mobile App]:::ui
         GW == "WebSockets (Real-time)" === UI_WEB
