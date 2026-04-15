@@ -43,14 +43,18 @@ flowchart TD
         TS[Traffic Service]:::service
         WS[Waste Service]:::service
         ES[Emergency Service]:::service
-        MQ <--> TS & WS & ES
+        MQ <--> TS
+        MQ <--> WS
+        MQ <--> ES
     end
 
     subgraph Tier5 ["5. Gateway & Storage"]
         GW[Gateway / WS Bridge]:::gateway
         DB[(PostgreSQL)]:::db
         REDIS[(Redis Cache)]:::db
-        TS & WS & ES --> DB
+        TS --> DB
+        WS --> DB
+        ES --> DB
         MQ -- "Live Telemetry" --> GW
         GW <--> REDIS
     end
