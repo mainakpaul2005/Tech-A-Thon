@@ -52,8 +52,8 @@ flowchart TD
     subgraph Tier1 ["1. Physical IoT Layer"]
         direction TB
         HW[ESP32 Node]:::physical
-        PIR[PIR Motion Sensor]:::physical --> HW
-        SONAR[HC-SR04 Ultrasonic]:::physical --> HW
+        PIR[PIR Motion Sensor]:::physical
+        SONAR[HC-SR04 Ultrasonic]:::physical
     end
 
     subgraph Tier2 ["2. Message Broker"]
@@ -62,9 +62,6 @@ flowchart TD
 
     subgraph Tier3 ["3. Adaptive Edge Processing"]
         ADAPT{5G / 4G Edge Node}:::edge
-        HW -- "raw/data (6s interval)" --> MQ
-        MQ -- Subscribes --> ADAPT
-        ADAPT -- "city/data (Processed)" --> MQ
     end
 
     subgraph Tier4 ["4. Core Microservices"]
@@ -72,9 +69,6 @@ flowchart TD
         TS[Traffic Service]:::service
         WS[Waste Service]:::service
         ES[Emergency Service]:::service
-        MQ <--> TS
-        MQ <--> WS
-        MQ <--> ES
     end
 
     subgraph Tier5 ["5. Gateway & Storage"]
@@ -82,20 +76,35 @@ flowchart TD
         GW[Gateway / WS Bridge]:::gateway
         DB[(PostgreSQL)]:::db
         REDIS[(Redis Cache)]:::db
-        TS --> DB
-        WS --> DB
-        ES --> DB
-        MQ -- "Live Telemetry" --> GW
-        GW <--> REDIS
     end
 
     subgraph Tier6 ["6. Presentation Layer"]
         direction TB
         UI_WEB[Web Dashboard]:::ui
         UI_MOB[Mobile App]:::ui
-        GW == "WebSockets (Real-time)" === UI_WEB
-        GW -. "REST APIs" .-> UI_MOB
     end
+
+    %% Flow Connections
+    PIR --> HW
+    SONAR --> HW
+    HW -- "raw/data (6s interval)" --> MQ
+    
+    MQ -- "Subscribes" --> ADAPT
+    ADAPT -- "city/data (Processed)" --> MQ
+    
+    MQ <--> TS
+    MQ <--> WS
+    MQ <--> ES
+    
+    TS --> DB
+    WS --> DB
+    ES --> DB
+    
+    MQ -- "Live Telemetry" --> GW
+    GW <--> REDIS
+    
+    GW == "WebSockets (Real-time)" === UI_WEB
+    GW -. "REST APIs" .-> UI_MOB
 ```
 
 ### 🧱 Block Diagram Components:
