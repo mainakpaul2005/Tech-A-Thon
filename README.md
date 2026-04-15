@@ -103,7 +103,11 @@ flowchart TD
     MQ -- "Live Telemetry" --> GW
     GW <--> REDIS
     
-    GW == "WebSockets (Real-time)" === UI_WEB
+    %% Force vertical structural constraints
+    DB ~~~ UI_WEB
+    REDIS ~~~ UI_MOB
+    
+    GW == "WebSockets (Real-time)" ==> UI_WEB
     GW -. "REST APIs" .-> UI_MOB
 ```
 
