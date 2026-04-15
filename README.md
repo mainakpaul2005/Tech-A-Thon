@@ -8,53 +8,62 @@ NexaCity is a state-of-the-art smart city infrastructure platform that bridges t
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture & Block Diagram
 
-NexaCity operates on a highly decoupled microservices architecture designed for real-time data ingestion and low-latency response.
+NexaCity operates on a highly decoupled microservices architecture designed for real-time data ingestion and low-latency response. The following block diagram illustrates the end-to-end data pipeline from physical sensors to the user interface.
 
 ```mermaid
-graph TD
-    %% Hardware Layer
-    subgraph Edge Layer
-        ESP32[ESP32 Hardware Node]
-        Sensors[(HC-SR04 & PIR)]
-        Sensors --> ESP32
+flowchart TD
+    classDef physical fill:#2d3748,stroke:#4a5568,stroke-width:2px,color:#fff
+    classDef mqtt fill:#d97706,stroke:#b45309,stroke-width:2px,color:#fff
+    classDef edge fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
+    classDef service fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
+    classDef gateway fill:#7c3aed,stroke:#6d28d9,stroke-width:2px,color:#fff
+    classDef ui fill:#db2777,stroke:#be185d,stroke-width:2px,color:#fff
+    classDef db fill:#0891b2,stroke:#0e7490,stroke-width:2px,color:#fff
+
+    subgraph Tier1 ["1. Physical IoT Layer"]
+        HW[ESP32 Node]:::physical
+        PIR[PIR Motion Sensor]:::physical --> HW
+        SONAR[HC-SR04 Ultrasonic]:::physical --> HW
     end
-    
-    %% Broker Layer
-    Broker[Mosquitto MQTT Broker]
-    ESP32 -- "MQTT (6s Sync)" --> Broker
-    
-    %% Processing Layer
-    subgraph Microservices Cluster
-        EdgeNode[Adaptive Edge Node<br>Python]
-        Traffic[Traffic Service<br>Node.js]
-        Waste[Waste Service<br>Node.js]
-        Emerg[Emergency Service<br>Node.js]
+
+    subgraph Tier2 ["2. Message Broker"]
+        MQ((Mosquitto MQTT)):::mqtt
     end
-    
-    Broker <--> EdgeNode
-    Broker <--> Traffic
-    Broker <--> Waste
-    Broker <--> Emerg
-    
-    %% Gateway & Frontend
-    Gateway[Gateway Service<br>Express / WS Bridge]
-    Broker -- "MQTT Sub" --> Gateway
-    
-    Frontend[Web Dashboard<br>React / Vite]
-    Gateway -- "WebSockets" --> Frontend
-    
-    %% Storage Layer
-    DB[(PostgreSQL / PostGIS)]
-    Cache[(Redis)]
-    
-    Traffic --> DB
-    Waste --> DB
-    Gateway --> Cache
+
+    subgraph Tier3 ["3. Adaptive Edge Processing"]
+        ADAPT{5G / 4G Edge Node}:::edge
+        HW -- "raw/data (6s interval)" --> MQ
+        MQ -- Subscribes --> ADAPT
+        ADAPT -- "city/data (Processed)" --> MQ
+    end
+
+    subgraph Tier4 ["4. Core Microservices"]
+        TS[Traffic Service]:::service
+        WS[Waste Service]:::service
+        ES[Emergency Service]:::service
+        MQ <--> TS & WS & ES
+    end
+
+    subgraph Tier5 ["5. Gateway & Storage"]
+        GW[Gateway / WS Bridge]:::gateway
+        DB[(PostgreSQL)]:::db
+        REDIS[(Redis Cache)]:::db
+        TS & WS & ES --> DB
+        MQ -- "Live Telemetry" --> GW
+        GW <--> REDIS
+    end
+
+    subgraph Tier6 ["6. Presentation Layer"]
+        UI_WEB[Web Dashboard]:::ui
+        UI_MOB[Mobile App]:::ui
+        GW == "WebSockets (Real-time)" === UI_WEB
+        GW -. "REST APIs" .-> UI_MOB
+    end
 ```
 
-### Architecture Components:
+### 🧱 Block Diagram Components:
 1. **IoT Edge Layer**: Physical ESP32 microcontrollers gather real-time data from localized sensors and transmit telemetry via lightweight MQTT protocols.
 2. **Adaptive Edge Node**: A Python service that dynamically adjusts data aggregation based on simulated network status (5G vs 4G Fallback) to optimize bandwidth.
 3. **Microservices Cluster**: Specialized Node.js and Python workers process distinct data streams (Traffic, Waste, Utilities).
