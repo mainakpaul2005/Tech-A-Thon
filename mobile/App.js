@@ -4,8 +4,7 @@ import {
   Text, 
   View, 
   ScrollView, 
-  TouchableOpacity, 
-  SafeAreaView, 
+  TouchableOpacity,  
   StatusBar,
   Dimensions,
   Animated,
@@ -13,6 +12,7 @@ import {
   TextInput,
   Appearance,
 } from 'react-native';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { 
   Activity, 
   Trash2, 
@@ -387,10 +387,22 @@ import { auth, db } from './firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
+
 // ══════════════════════════════════════════════
 //   MAIN APP
 // ══════════════════════════════════════════════
-export default function App() {
+const INTERSECTIONS = [
+  { id: 'INT-01', name: 'Park St × Camac', zone: 'Z1' },
+  { id: 'INT-02', name: 'Salt Lake Sec V', zone: 'Z2' },
+  { id: 'INT-03', name: 'Howrah Bridge N', zone: 'Z3' },
+  { id: 'INT-04', name: 'New Town Biswa', zone: 'Z4' },
+  { id: 'INT-05', name: 'EM Bypass Ruby', zone: 'Z1' },
+  { id: 'INT-06', name: 'Rajarhat Chow', zone: 'Z4' },
+];
+
+const SIGNAL_COLORS_MAP = { GREEN: C.green, YELLOW: '#fbbf24', RED: C.red };
+
+function MainApp() {
   const [role, setRole] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -413,6 +425,47 @@ export default function App() {
     photo: null
   });
   const [lastUpdate, setLastUpdate] = useState(new Date());
+
+  const [signals, setSignals] = useState(() => {
+    const init = {};
+    INTERSECTIONS.forEach(i => {
+      init[i.id] = {
+        current: 'GREEN', mode: 'AUTO', greenDuration: 45,
+        vehicleCount: Math.floor(Math.random() * 80) + 10,
+        avgSpeed: Math.floor(Math.random() * 40) + 20,
+        congestion: Math.random(),
+      };
+    });
+    return init;
+  });
+  const [trafficCorridor, setTrafficCorridor] = useState(null);
+  const [trafficIncidents, setTrafficIncidents] = useState([]);
+  const [trafficRules, setTrafficRules] = useState([
+    { id: 1, name: 'Rush Hour Extension', condition: 'congestion > 70%', action: 'GREEN +20s', zone: 'All', enabled: true },
+    { id: 2, name: 'Night Mode', condition: '22:00–06:00', action: 'Blink YELLOW', zone: 'Z3,Z4', enabled: true },
+    { id: 3, name: 'School Zone', condition: '07:30–09:00', action: 'Speed 30km/h', zone: 'Z2', enabled: false },
+  ]);
+
+  // Simulate IoT sensor updates for traffic
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSignals(prev => {
+        const next = { ...prev };
+        INTERSECTIONS.forEach(i => {
+          const s = { ...next[i.id] };
+          s.vehicleCount = Math.max(5, s.vehicleCount + Math.floor(Math.random() * 20 - 10));
+          s.avgSpeed = Math.max(5, Math.min(80, s.avgSpeed + Math.floor(Math.random() * 10 - 5)));
+          s.congestion = Math.min(1, Math.max(0, s.vehicleCount / 100));
+          if (s.mode === 'AUTO') {
+            s.greenDuration = s.congestion > 0.8 ? 60 : s.congestion > 0.5 ? 45 : 30;
+          }
+          next[i.id] = s;
+        });
+        return next;
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async (uid) => {
@@ -940,58 +993,6 @@ export default function App() {
   //   TRAFFIC COMMAND CENTER TAB (Admin Only)
   // ═══════════════════════════════════════════════
 
-  const INTERSECTIONS = [
-    { id: 'INT-01', name: 'Park St × Camac', zone: 'Z1' },
-    { id: 'INT-02', name: 'Salt Lake Sec V', zone: 'Z2' },
-    { id: 'INT-03', name: 'Howrah Bridge N', zone: 'Z3' },
-    { id: 'INT-04', name: 'New Town Biswa', zone: 'Z4' },
-    { id: 'INT-05', name: 'EM Bypass Ruby', zone: 'Z1' },
-    { id: 'INT-06', name: 'Rajarhat Chow', zone: 'Z4' },
-  ];
-
-  const SIGNAL_COLORS_MAP = { GREEN: C.green, YELLOW: '#fbbf24', RED: C.red };
-
-  const [signals, setSignals] = useState(() => {
-    const init = {};
-    INTERSECTIONS.forEach(i => {
-      init[i.id] = {
-        current: 'GREEN', mode: 'AUTO', greenDuration: 45,
-        vehicleCount: Math.floor(Math.random() * 80) + 10,
-        avgSpeed: Math.floor(Math.random() * 40) + 20,
-        congestion: Math.random(),
-      };
-    });
-    return init;
-  });
-  const [trafficCorridor, setTrafficCorridor] = useState(null);
-  const [trafficIncidents, setTrafficIncidents] = useState([]);
-  const [trafficRules, setTrafficRules] = useState([
-    { id: 1, name: 'Rush Hour Extension', condition: 'congestion > 70%', action: 'GREEN +20s', zone: 'All', enabled: true },
-    { id: 2, name: 'Night Mode', condition: '22:00–06:00', action: 'Blink YELLOW', zone: 'Z3,Z4', enabled: true },
-    { id: 3, name: 'School Zone', condition: '07:30–09:00', action: 'Speed 30km/h', zone: 'Z2', enabled: false },
-  ]);
-
-  // Simulate IoT sensor updates for traffic
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSignals(prev => {
-        const next = { ...prev };
-        INTERSECTIONS.forEach(i => {
-          const s = { ...next[i.id] };
-          s.vehicleCount = Math.max(5, s.vehicleCount + Math.floor(Math.random() * 20 - 10));
-          s.avgSpeed = Math.max(5, Math.min(80, s.avgSpeed + Math.floor(Math.random() * 10 - 5)));
-          s.congestion = Math.min(1, Math.max(0, s.vehicleCount / 100));
-          if (s.mode === 'AUTO') {
-            s.greenDuration = s.congestion > 0.8 ? 60 : s.congestion > 0.5 ? 45 : 30;
-          }
-          next[i.id] = s;
-        });
-        return next;
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
   const renderTrafficControl = () => {
     const totalVehicles = Object.values(signals).reduce((a, s) => a + s.vehicleCount, 0);
     const avgCong = Object.values(signals).reduce((a, s) => a + s.congestion, 0) / INTERSECTIONS.length;
@@ -1406,6 +1407,15 @@ export default function App() {
     </SafeAreaView>
   );
 }
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <MainApp />
+    </SafeAreaProvider>
+  );
+}
+
 
 
 // ══════════════════════════════════════════════
