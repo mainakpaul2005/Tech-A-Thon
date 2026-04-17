@@ -7,6 +7,18 @@
 node_modules/
 npm-debug.log
 yarn-error.log
+pnpm-debug.log
+
+# Frontend (Vite)
+frontend/dist/
+frontend/.vite/
+frontend/build_output.txt
+
+# Mobile (React Native/Expo)
+mobile/.expo/
+mobile/.expo-shared/
+mobile/android/
+mobile/ios/
 
 # Python
 __pycache__/
@@ -43,6 +55,10 @@ venv.bak/
 # Logs
 logs
 *.log
+
+# Mosquitto runtime data
+infra/mosquitto/data/
+infra/mosquitto/log/
 
 # OS generated files
 .DS_Store

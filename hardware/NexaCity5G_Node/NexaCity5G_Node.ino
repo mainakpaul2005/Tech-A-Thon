@@ -128,11 +128,11 @@ void loop() {
     // Calculate distance in cm
     int distance = duration * 0.034 / 2;
     
-    // Calculate fill level % (Assuming 100cm is empty, 10cm is full)
+    // Calculate fill level % (Assuming 10cm is empty, 2cm is full)
     int fill_level = 0;
-    if(distance <= 10) fill_level = 100;
-    else if(distance >= 100) fill_level = 0;
-    else fill_level = map(distance, 100, 10, 0, 100);
+    if(distance <= 2) fill_level = 100;
+    else if(distance >= 10) fill_level = 0;
+    else fill_level = map(distance, 10, 2, 0, 100);
 
     // --- Create and Send Waste Payload ---
     String wastePayload = "{\"bin_id\":\"B001\", \"fill_level\":";
@@ -144,14 +144,11 @@ void loop() {
     Serial.println(wastePayload);
 
     // --- Create and Send Traffic Payload ---
-    // Simulating an average speed based on a simple random calculation or static for demo
-    int avg_speed = random(20, 60); 
-    String trafficStatus = (vehicleCount > 5) ? "CONGESTED" : "NORMAL";
+    // Judging congestion based on cumulative count (e.g. over 15 total vehicles = congested)
+    String trafficStatus = (vehicleCount > 20) ? "CONGESTED" : "NORMAL";
     
     String trafficPayload = "{\"zone_id\":\"Z1\", \"vehicle_count\":";
     trafficPayload += vehicleCount;
-    trafficPayload += ", \"avg_speed\":";
-    trafficPayload += avg_speed;
     trafficPayload += ", \"status\":\"";
     trafficPayload += trafficStatus;
     trafficPayload += "\"}";
@@ -160,7 +157,9 @@ void loop() {
     Serial.print("Published Traffic: ");
     Serial.println(trafficPayload);
     
-    // Reset vehicle count for the next interval
-    vehicleCount = 0;
+    // Reset vehicle count after crossing 20 to loop the demo
+    if (vehicleCount > 20) {
+      vehicleCount = 0;
+    }
   }
 }

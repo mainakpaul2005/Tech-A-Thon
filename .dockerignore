@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.env
+infra/postgres/data
+infra/mosquitto/data
+infra/mosquitto/log

@@ -25,3 +25,10 @@ By powering the HC-SR04 with 3.3V, we ensure the Echo signal is safe for the ESP
 2. **Translation**: The ESP32 converts time-of-flight to percentage (Waste) and motion to count (Traffic).
 3. **Transmission**: The node sends an MQTT JSON payload to your PC over WiFi.
 4. **Edge Processing**: `edge_node.py` receives the data and forwards it to the microservices.
+
+## 4. Robust Water Level Logic
+The `WaterLevel_Node` provides extra reliability:
+- **Noise Filtering**: Averages 5 readings per cycle to eliminate sensor glitches.
+- **Rapid Rise Detection**: Alerts if water rises >10% between consecutive cycles.
+- **Alert Confirmation**: Requires 3 consecutive "High" readings to confirm a Flood Alert.
+- **MQTT Topic**: Publishes to `city/water` instead of `raw/waste`.

@@ -46,10 +46,11 @@ def on_message(client, userdata, msg):
             avg_count = round(sum(traffic_buffer[zone]) / len(traffic_buffer[zone]), 1)
             processed_payload = {
                 "zone_id": zone,
-                "avg_vehicle_count": avg_count,
+                "vehicle_count": avg_count,
                 "timestamp": payload.get("timestamp"),
                 "mode": network_mode,
-                "compressed": network_mode == "4G_FALLBACK"
+                "compressed": network_mode == "4G_FALLBACK",
+                "status": payload.get("status", "NORMAL")
             }
             client.publish(f"city/traffic/{zone}", json.dumps(processed_payload))
             print(f"[{network_mode}] Forwarded traffic for {zone} (agg size: {agg_threshold})")
@@ -57,7 +58,7 @@ def on_message(client, userdata, msg):
 
     elif "raw/waste" in topic:
         # In Fallback mode, only send if bin is critical (>80%)
-        waste_threshold = 10 if network_mode == "5G" else 80
+        waste_threshold = 0 if network_mode == "5G" else 80
         if payload.get("fill_level", 0) >= waste_threshold:
             client.publish(topic.replace("raw/", "city/"), msg.payload)
 

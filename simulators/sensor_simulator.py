@@ -8,7 +8,7 @@ from datetime import datetime
 MQTT_BROKER = os.getenv("MQTT_BROKER", "mosquitto")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 
-client = mqtt.Client("NexaCity_Sensor_Sim")
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "NexaCity_Sensor_Sim")
 
 def connect_mqtt():
     while True:
@@ -61,6 +61,18 @@ def simulate_emergency():
         }
         client.publish(f"raw/emergency/alerts", json.dumps(payload))
 
+def simulate_water():
+    # Simulate a steady water level with occasional spikes
+    percentage = random.uniform(30.0, 95.0)
+    
+    payload = {
+        "timestamp": datetime.now().isoformat(),
+        "device": "water_node_01",
+        "percentage": round(percentage, 2),
+        "alert": percentage > 80.0
+    }
+    client.publish("city/water", json.dumps(payload))
+
 if __name__ == "__main__":
     connect_mqtt()
     print("🚀 IoT Data Simulation Started...")
@@ -69,6 +81,7 @@ if __name__ == "__main__":
         simulate_traffic()
         simulate_waste()
         simulate_emergency()
+        simulate_water()
         
         # Artificial delay between sensor bursts
         time.sleep(random.uniform(1.0, 3.0))

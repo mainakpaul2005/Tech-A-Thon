@@ -125,6 +125,16 @@ services:
       - gateway
     restart: always
 
+  # IoT Sensor Simulator (Mock Data Generator)
+  simulator:
+    build: ./simulators
+    container_name: nexacity-simulator
+    environment:
+      - MQTT_BROKER=mosquitto
+    depends_on:
+      - mosquitto
+    restart: always
+
 volumes:
   postgres_data:
   redis_data:

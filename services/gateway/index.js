@@ -45,6 +45,7 @@ mqttClient.on('message', (topic, message) => {
     const payload = JSON.parse(message.toString());
     const type = topic.includes('traffic') ? 'TRAFFIC_UPDATE' : 
                  topic.includes('waste') ? 'WASTE_UPDATE' : 
+                 topic.includes('water') ? 'WATER_UPDATE' :
                  topic.includes('emergency') ? 'EMERGENCY_ALERT' : 'UNKNOWN';
     
     const broadcastData = JSON.stringify({

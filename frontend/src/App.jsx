@@ -45,8 +45,64 @@ import {
   Cell,
   CartesianGrid,
   Legend,
+  ScatterChart,
+  Scatter,
+  LabelList,
 } from 'recharts';
 import AIIncidentAnalysis from './AIIncidentAnalysis';
+
+// ═══════════════════════════════════════════════════
+//  WASTE COLLECTION OPTIMIZATION ALGORITHM
+// ═══════════════════════════════════════════════════
+function calculateDistance(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+}
+
+function planCollectionRoute(bins, startX = 0, startY = 0, criticalThreshold = 80) {
+    let route = [];
+    let currentX = startX;
+    let currentY = startY;
+    
+    // Copy the bins to track collected state
+    let uncollectedBins = bins.map(b => ({ ...b, is_collected: false }));
+
+    while (true) {
+        let remaining = uncollectedBins.filter(b => !b.is_collected);
+        if (remaining.length === 0) break;
+
+        let criticalBins = remaining.filter(b => b.fill_level >= criticalThreshold);
+        let nextBin = null;
+
+        if (criticalBins.length > 0) {
+            // Rule A: Prioritize critically full bins (descending)
+            criticalBins.sort((a, b) => b.fill_level - a.fill_level);
+            nextBin = criticalBins[0];
+        } else {
+            // Rule B: Balance Fill Level and Proximity
+            let bestScore = -1;
+            for (let b of remaining) {
+                let dist = calculateDistance(currentX, currentY, b.x, b.y);
+                dist = Math.max(dist, 0.1); // Prevent div by 0
+                let score = b.fill_level / dist;
+                if (score > bestScore) {
+                    bestScore = score;
+                    nextBin = b;
+                }
+            }
+        }
+
+        if (nextBin) {
+            route.push(nextBin);
+            nextBin.is_collected = true;
+            currentX = nextBin.x;
+            currentY = nextBin.y;
+        } else {
+            break;
+        }
+    }
+    return route;
+}
+
 
 // ═══════════════════════════════════════════════════
 //  SIMULATED REAL-TIME DATA ENGINE
@@ -151,6 +207,8 @@ function useRealtimePipeline(enabled, networkMode) {
   const [heavyTrafficActive, setHeavyTrafficActive] = useState(false);
   const [wasteStatus, setWasteStatus] = useState({});
   const [activeEmergencies, setActiveEmergencies] = useState([]);
+  const [waterStatus, setWaterStatus] = useState({});
+  const [waterLogs, setWaterLogs] = useState([]);
   const [pipelineStats, setPipelineStats] = useState({
     messagesProcessed: 0,
     messagesFiltered: 0,
@@ -178,13 +236,17 @@ function useRealtimePipeline(enabled, networkMode) {
       setTrafficLogs(prev => [logItem, ...prev.slice(0, 14)]);
     } else if (type === 'waste') {
       const now = Date.now();
-      if (now - lastWasteLogTime.current >= 30000) {
-        // Friendly message for non-tech users
-        const level = msg.includes('%') ? msg.split(': ')[1] : 'checked';
-        logItem.msg = `Bin ${msg.split(' ')[0]} is currently ${level}`;
-        setWasteLogs(prev => [logItem, ...prev.slice(0, 14)]);
-        lastWasteLogTime.current = now;
-      }
+      // Use the passed msg directly or format it cleanly
+      const binIdMatch = msg.match(/(B\d{3})/);
+      const binId = binIdMatch ? binIdMatch[0] : 'Unknown';
+      const levelMatch = msg.match(/(\d+%)/);
+      const level = levelMatch ? levelMatch[0] : 'checked';
+      const isCritical = msg.includes('critical');
+      logItem.msg = `${isCritical ? '⚠️ ' : ''}Bin ${binId} is currently ${level} full`;
+      setWasteLogs(prev => [logItem, ...prev.slice(0, 14)]);
+      lastWasteLogTime.current = now;
+    } else if (type === 'water') {
+      setWaterLogs(prev => [logItem, ...prev.slice(0, 14)]);
     } else {
       setTrafficLogs(prev => [logItem, ...prev.slice(0, 14)]);
     }
@@ -207,16 +269,16 @@ function useRealtimePipeline(enabled, networkMode) {
             addLog('edge', data.message, '✅');
           } else if (data.type === 'TRAFFIC_UPDATE') {
             const now = Date.now();
-            setTotalVehicleCount(prev => prev + data.avg_vehicle_count);
+            const latestCount = data.vehicle_count || data.avg_vehicle_count || 0;
+            
+            // As hardware is now cumulative, we just take the max seen
+            setTotalVehicleCount(prev => Math.max(prev, latestCount));
             
             setTrafficWindow(prevWindow => {
               const updatedWindow = [...prevWindow.filter(t => now - t.timestamp < 30000), { ...data, timestamp: now }];
-              const last5 = updatedWindow.slice(-5);
-              if (last5.length >= 5 && last5.every(t => t.avg_vehicle_count > 0)) {
-                setHeavyTrafficActive(true);
-              } else {
-                setHeavyTrafficActive(false);
-              }
+              // Use the explicit hardware status for congestion alert
+              if (data.status === 'CONGESTED') setHeavyTrafficActive(true);
+              else setHeavyTrafficActive(false);
               return updatedWindow;
             });
 
@@ -228,6 +290,13 @@ function useRealtimePipeline(enabled, networkMode) {
               addLog('waste', `⚠️ ${data.bin_id} critical: ${data.fill_level}% full`, '🗑️');
             } else {
               addLog('waste', `${data.bin_id} level updated: ${data.fill_level}%`, '🗑️');
+            }
+          } else if (data.type === 'WATER_UPDATE') {
+            setWaterStatus(prev => ({ ...prev, [data.device]: data }));
+            if (data.alert) {
+              addLog('water', `🚨 FLOOD ALERT: ${data.device} at ${data.percentage}%`, '🌊');
+            } else {
+              addLog('water', `${data.device} level: ${data.percentage}%`, '💧');
             }
           }
         } catch (e) { /* ignore malformed */ }
@@ -255,7 +324,7 @@ function useRealtimePipeline(enabled, networkMode) {
     };
   }, [enabled, networkMode, addLog]);
 
-  return { trafficLogs, wasteLogs, trafficHistory, trafficWindow, totalVehicleCount, heavyTrafficActive, wasteStatus, activeEmergencies, pipelineStats, wsConnected };
+  return { trafficLogs, wasteLogs, waterLogs, trafficHistory, trafficWindow, totalVehicleCount, heavyTrafficActive, wasteStatus, waterStatus, activeEmergencies, pipelineStats, wsConnected };
 }
 
 
@@ -263,8 +332,8 @@ function useRealtimePipeline(enabled, networkMode) {
 //  COMPONENTS
 // ═══════════════════════════════════════════════════
 
-const StatCard = ({ title, value, icon: Icon, color, delta, deltaUp }) => (
-  <div className="card" id={`stat-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+const StatCard = ({ title, value, icon: Icon, color, delta, deltaUp, className }) => (
+  <div className={["card", className].filter(Boolean).join(' ')} id={`stat-${title.toLowerCase().replace(/\s+/g, '-')}`}>
     <div className="card-title">{title}</div>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <div className="card-value" style={{ color }}>{value}</div>
@@ -345,14 +414,16 @@ const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficWindow, total
         INTERSECTION_DATA.forEach(i => {
           const s = { ...next[i.id] };
           
-          // Calculate 30s volume for this zone from hardware
-          const zoneVolume = trafficWindow
-            .filter(t => t.zone_id === i.zone)
-            .reduce((a, b) => a + b.avg_vehicle_count, 0);
+          // Parse latest cumulative stats from hardware for this zone
+          const zonePackets = trafficWindow.filter(t => t.zone_id === i.zone);
+          const latestPacket = zonePackets.length > 0 ? zonePackets[zonePackets.length - 1] : null;
 
-          s.vehicleCount = Math.round(zoneVolume); 
-          s.avgSpeed = 40; 
-          s.congestion = Math.min(1, s.vehicleCount / 10);
+          if (latestPacket) {
+            s.vehicleCount = latestPacket.vehicle_count || latestPacket.avg_vehicle_count || 0;
+            s.congestion = latestPacket.status === 'CONGESTED' ? 0.85 : Math.min(0.4, s.vehicleCount / 30);
+          }
+          
+          s.avgSpeed = '-'; // Removed randomly generated average speed
           s.queueLength = Math.max(0, Math.floor(s.vehicleCount * 0.5));
           s.lastUpdate = new Date();
 
@@ -371,6 +442,24 @@ const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficWindow, total
     }, 1000);
     return () => clearInterval(interval);
   }, [trafficWindow]);
+
+  // Admin Alert on Congestion
+  useEffect(() => {
+    if (heavyTrafficActive) {
+      alert("🚨 ADMIN ALERT: Severe Congestion Detected! Signals automatically updated to RED to clear cross-traffic.");
+      // Automatically log an incident for INT-01 if not already present
+      setIncidents(prev => {
+        if (prev.some(inc => inc.status === 'ACTIVE' && inc.intersection === 'Park Street × Camac St')) return prev;
+        return [{
+          id: Date.now(),
+          intersection: 'Park Street × Camac St',
+          zone: 'Z1',
+          time: new Date(),
+          status: 'ACTIVE - AUTO REPORT'
+        }, ...prev];
+      });
+    }
+  }, [heavyTrafficActive]);
 
   const overrideSignal = (intId, newState) => {
     setSignals(prev => ({
@@ -733,26 +822,272 @@ const TrafficCommandCenter = ({ pipelineStats, networkMode, trafficWindow, total
 
 
 // ═══════════════════════════════════════════════════
+//  SMART WASTE ROUTING CONTROLLER (Admin Only)
+// ═══════════════════════════════════════════════════
+
+const WasteRoutingService = () => {
+  const [bins, setBins] = useState([]);
+  const [name, setName] = useState('');
+  const [fillLevel, setFillLevel] = useState('');
+  const [xPos, setXPos] = useState('');
+  const [yPos, setYPos] = useState('');
+  const [route, setRoute] = useState(null);
+
+  const cardStyle = {
+    background: 'var(--bg-card)', border: '1px solid var(--bg-highlight)',
+    borderRadius: 16, padding: 16, marginBottom: 12,
+  };
+
+  const handleAddBin = (e) => {
+    e.preventDefault();
+    if (name && fillLevel && xPos && yPos) {
+      setBins([...bins, {
+        id: `B${Math.floor(100 + Math.random() * 900)}`,
+        name,
+        fill_level: Number(fillLevel),
+        x: Number(xPos),
+        y: Number(yPos)
+      }]);
+      setName(''); setFillLevel(''); setXPos(''); setYPos('');
+    }
+  };
+
+  const removeBin = (id) => {
+    setBins(bins.filter(b => b.id !== id));
+    setRoute(null);
+  };
+
+  const loadMockData = () => {
+    setBins([
+      { id: 'B001', name: 'Park Street Cross', fill_level: 100, x: 10, y: 15 },
+      { id: 'B002', name: 'Camac Street Metro', fill_level: 30, x: 11, y: 14 },
+      { id: 'B003', name: 'Sector V Ring Road', fill_level: 75, x: 45, y: 60 },
+      { id: 'B004', name: 'New Town Plaza', fill_level: 85, x: 50, y: 65 },
+      { id: 'B005', name: 'Salt Lake Stadium', fill_level: 40, x: 30, y: 40 },
+      { id: 'B006', name: 'Ruby Hospital Bus Stop', fill_level: 95, x: 20, y: 20 },
+      { id: 'B007', name: 'Gariahat Market', fill_level: 60, x: 15, y: 18 },
+      { id: 'B008', name: 'Esplanade Square', fill_level: 15, x: 5, y: 5 },
+    ]);
+    setRoute(null);
+  };
+
+  const handleCalculateRoute = () => {
+    const computedRoute = planCollectionRoute(bins);
+    setRoute(computedRoute);
+  };
+
+  // Prepare data for the graph
+  const scatterData = [];
+  for (let i = 0; i < bins.length; i++) {
+    scatterData.push({
+      x: bins[i].x,
+      y: bins[i].y,
+      name: bins[i].id,
+      fill: bins[i].fill_level,
+      type: 'bin'
+    });
+  }
+
+  let routeLineData = [];
+  if (route && route.length > 0) {
+    routeLineData = [{ x: 0, y: 0, name: 'Depot' }];
+    for (let i = 0; i < route.length; i++) {
+        routeLineData.push({ x: route[i].x, y: route[i].y, name: route[i].id });
+    }
+  }
+
+  const scatterCells = [];
+  for (let i = 0; i < scatterData.length; i++) {
+    const entry = scatterData[i];
+    let fillColor = 'var(--accent-green)';
+    if (entry.fill >= 80) fillColor = 'var(--accent-red)';
+    else if (entry.fill >= 50) fillColor = 'var(--accent-orange)';
+    scatterCells.push(<Cell key={`cell-${i}`} fill={fillColor} />);
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+      {/* Route Visualization Graph */}
+      <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <TrendingUp size={18} color="var(--accent-cyan)" />
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 800 }}>Spatial Route Mapping</h3>
+        </div>
+        <div style={{ height: '300px', background: 'var(--bg-surface)', borderRadius: 12, padding: 10 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis type="number" dataKey="x" name="X" unit="m" stroke="var(--text-muted)" fontSize={10} domain={[0, 100]} />
+              <YAxis type="number" dataKey="y" name="Y" unit="m" stroke="var(--text-muted)" fontSize={10} domain={[0, 100]} />
+              <Tooltip 
+                cursor={{ strokeDasharray: '3 3' }}
+                contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--bg-highlight)', borderRadius: 10, fontSize: '0.75rem' }}
+              />
+              
+              {/* Plot the Route Line Glow (thicker, lower alpha) */}
+              {route && (
+                <Scatter data={routeLineData} line={{ stroke: 'var(--accent-cyan)', strokeWidth: 8, strokeOpacity: 0.15 }} shape={() => null} />
+              )}
+              
+              {/* Plot the Primary Route Line (solid, vibrant) */}
+              {route && (
+                <Scatter data={routeLineData} line={{ stroke: 'var(--accent-cyan)', strokeWidth: 4 }} shape={() => null} />
+              )}
+
+              {/* Plot the Bins */}
+              <Scatter name="Bins" data={scatterData} fill="#8884d8">
+                {scatterCells}
+                <LabelList dataKey="name" position="top" style={{ fill: 'var(--text-muted)', fontSize: '11px', fontWeight: '800' }} offset={10} />
+              </Scatter>
+            </ScatterChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ marginTop: 12, display: 'flex', gap: 15, justifyContent: 'center' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-red)' }}></div> Depot (0,0)
+           </div>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+             <div style={{ width: 8, height: 8, borderRadius: '20%', background: 'var(--accent-green)' }}></div> Safe Bin
+           </div>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+             <div style={{ width: 8, height: 8, borderRadius: '20%', background: 'var(--accent-red)' }}></div> Critical Bin
+           </div>
+        </div>
+      </div>
+      
+      {/* Input Section */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Settings2 size={18} color="var(--accent-orange)" />
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800 }}>Configure Dustbins</h3>
+          </div>
+          <button onClick={loadMockData} style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--accent-orange)', background: 'transparent', color: 'var(--accent-orange)', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }}>
+            Load Test Data
+          </button>
+        </div>
+        
+        <form onSubmit={handleAddBin} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+          <input type="text" placeholder="Location Name (e.g., Central Park)" value={name} onChange={e => setName(e.target.value)} required 
+            style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--bg-highlight)', color: '#fff', outline: 'none' }} />
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <input type="number" placeholder="Fill %" value={fillLevel} onChange={e => setFillLevel(e.target.value)} required min="0" max="100"
+              style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--bg-highlight)', color: '#fff', outline: 'none' }} />
+            <input type="number" placeholder="X Coord" value={xPos} onChange={e => setXPos(e.target.value)} required
+              style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--bg-highlight)', color: '#fff', outline: 'none' }} />
+            <input type="number" placeholder="Y Coord" value={yPos} onChange={e => setYPos(e.target.value)} required
+              style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: '1px solid var(--bg-highlight)', color: '#fff', outline: 'none' }} />
+          </div>
+          
+          <button type="submit" style={{ padding: '10px', borderRadius: 8, border: 'none', background: 'var(--accent-cyan)', color: '#0f172a', fontWeight: 800, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+            <Trash2 size={16} /> Add Bin to Network
+          </button>
+        </form>
+
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>
+          Current Target Nodes ({bins.length})
+        </div>
+        
+        <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {bins.map((b) => (
+            <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-surface)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--bg-highlight)' }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>{b.name}</div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{b.fill_level}% Full • Coords: ({b.x}, {b.y})</div>
+              </div>
+              <button onClick={() => removeBin(b.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}><XAxis size={14} /> X</button>
+            </div>
+          ))}
+          {bins.length === 0 && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>No bins available. Add some above.</div>}
+        </div>
+      </div>
+
+      {/* Output / Routing Section */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Navigation size={18} color="var(--accent-green)" />
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800 }}>Generated Collection Route</h3>
+          </div>
+          <button onClick={handleCalculateRoute} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'var(--accent-green)', color: '#0f172a', fontWeight: 800, cursor: 'pointer', fontSize: '0.7rem' }}>
+            Calculate Path
+          </button>
+        </div>
+
+        {route ? (
+          <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', marginTop: 10 }}>
+            {/* Connecting line */}
+            <div style={{ position: 'absolute', left: '15px', top: '20px', bottom: '20px', width: '2px', background: 'var(--bg-highlight)' }} />
+            
+            {route.map((node, index) => (
+              <div key={node.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16, position: 'relative' }}>
+                <div style={{ 
+                  width: '32px', height: '32px', borderRadius: '16px', background: 'var(--bg-card)', 
+                  border: `2px solid ${node.fill_level >= 80 ? '#f87171' : 'var(--accent-green)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 800, color: '#fff', zIndex: 2
+                }}>
+                  {index + 1}
+                </div>
+                <div style={{ background: 'var(--bg-surface)', padding: '10px 14px', borderRadius: 10, flex: 1, border: '1px solid var(--bg-highlight)' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{node.name}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                    <span style={{ fontSize: '0.7rem', color: node.fill_level >= 80 ? '#f87171' : 'var(--text-muted)', fontWeight: node.fill_level >= 80 ? 700 : 500 }}>
+                      {node.fill_level}% Full {node.fill_level >= 80 ? '(CRITICAL)' : ''}
+                    </span>
+                    <span style={{ fontSize: '0.65rem', background: 'var(--bg-highlight)', padding: '2px 6px', borderRadius: 4 }}>
+                      Pos: {node.x}, {node.y}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: '40px 20px', textAlign: 'center', background: 'var(--bg-surface)', borderRadius: 12, border: '1px solid var(--bg-highlight)' }}>
+            <CircleDot size={24} color="var(--text-muted)" style={{ marginBottom: 10 }} />
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>No Route Generated</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Add bins and click "Calculate Path" to run the algorithm.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+// ═══════════════════════════════════════════════════
 //  ANALYTICS DASHBOARD TAB
 // ═══════════════════════════════════════════════════
 
-const AnalyticsDashboard = ({ trafficHistory, wasteStatus, pipelineStats, networkMode }) => {
-  // Traffic prediction data (simulates analytics service /predict/traffic)
-  const trafficPrediction = ZONES.map(zone => ({
-    zone,
-    congestion: Math.round(Math.random() * 80 + 10) / 100,
-    predicted: Math.round(Math.random() * 60 + 20),
-    recommendation: Math.random() > 0.5 ? 'Adjust timing' : 'Maintain current',
-    confidence: Math.round(Math.random() * 15 + 85),
-  }));
+const AnalyticsDashboard = ({ trafficHistory, wasteStatus, pipelineStats, networkMode, trafficWindow }) => {
+  // Traffic prediction data based on real ESP32 payload
+  const trafficPrediction = ZONES.map(zone => {
+    const zonePackets = trafficWindow?.filter(t => t.zone_id === zone) || [];
+    const latestPacket = zonePackets.length > 0 ? zonePackets[zonePackets.length - 1] : null;
+    const vehicleCount = latestPacket ? (latestPacket.vehicle_count || latestPacket.avg_vehicle_count || 0) : 0;
+    
+    const congestionValue = latestPacket?.status === 'CONGESTED' ? 0.9 : Math.min(0.8, vehicleCount / 30);
+    const predictedCongestion = Math.min(1.0, congestionValue * 1.25);
+    
+    return {
+      zone,
+      congestion: congestionValue,
+      predicted: Math.round(predictedCongestion * 100),
+      recommendation: congestionValue > 0.6 ? 'Adjust timing' : 'Maintain current',
+      confidence: latestPacket ? 95 : 45,
+    };
+  });
 
-  // Waste prediction data (simulates analytics service /predict/waste)
+  // Waste prediction data without randomized flickering
   const wastePrediction = BINS.map(bin => {
     const current = wasteStatus[bin]?.fill_level || 0;
+    // Assuming roughly 15% fill rate per day to make it deterministic
+    const calculatedDays = current > 0 ? Math.max(0, Math.round(((100 - current) / 15) * 10) / 10) : '> 6';
     return {
       bin,
       current,
-      daysUntilFull: current > 0 ? Math.round((100 - current) / (Math.random() * 10 + 2) * 10) / 10 : 'N/A',
+      daysUntilFull: current === 100 ? 0 : calculatedDays,
       priority: current >= 80 ? 'HIGH' : current >= 50 ? 'MEDIUM' : 'LOW',
     };
   });
@@ -892,6 +1227,47 @@ const AnalyticsDashboard = ({ trafficHistory, wasteStatus, pipelineStats, networ
             ))}
           </div>
         </div>
+
+        {/* Flood Risk Analytics */}
+        <div className="card" id="flood-risk-analytics">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3>🌊 Flood Risk Heatmap</h3>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', background: 'var(--bg-highlight)', padding: '3px 8px', borderRadius: 6 }}>
+              Gemini Vision AI
+            </div>
+          </div>
+          <div style={{ height: '200px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={[
+                { time: '10:00', risk: 20 },
+                { time: '11:00', risk: 35 },
+                { time: '12:00', risk: 45 },
+                { time: '13:00', risk: 85 },
+                { time: '14:00', risk: 92 },
+              ]}>
+                <defs>
+                  <linearGradient id="colorRisk" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f87171" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#f87171" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="time" stroke="#475569" fontSize={10} />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--bg-highlight)', borderRadius: 10 }} />
+                <Area type="monotone" dataKey="risk" stroke="#f87171" fillOpacity={1} fill="url(#colorRisk)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ padding: 10, background: 'rgba(248,113,113,0.1)', borderRadius: 10, border: '1px solid rgba(248,113,113,0.2)' }}>
+              <div style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 700, textTransform: 'uppercase' }}>Probability</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f87171' }}>85%</div>
+            </div>
+            <div style={{ padding: 10, background: 'var(--bg-highlight)', borderRadius: 10 }}>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Time to Flood</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>45m</div>
+            </div>
+          </div>
+        </div>
       </main>
 
       {/* Real-time Traffic Flow Chart */}
@@ -1024,14 +1400,55 @@ function App() {
   const { 
     trafficLogs, 
     wasteLogs, 
+    waterLogs,
     trafficHistory, 
     trafficWindow, 
     totalVehicleCount, 
     wasteStatus, 
+    waterStatus,
     activeEmergencies, 
     pipelineStats, 
     wsConnected 
   } = useRealtimePipeline(!!role, networkMode);
+
+  const waterLevel = waterStatus['water_node_01']?.percentage ?? 0;
+  const isFloodAlert = waterStatus['water_node_01']?.alert ?? false;
+
+  const b001Fill = wasteStatus['B001']?.fill_level ?? 0;
+  const dashboardStats = [
+    {
+      title: 'Water Level (Node 01)',
+      value: `${waterLevel}%`,
+      icon: Droplets,
+      color: isFloodAlert ? 'var(--accent-red)' : waterLevel > 50 ? 'var(--accent-cyan)' : 'var(--accent-blue)',
+      delta: isFloodAlert ? '🚨 FLOOD ALERT' : 'Normal Tide',
+      deltaUp: !isFloodAlert,
+    },
+    {
+      title: 'Bin B001 Fill Level',
+      value: `${b001Fill}%`,
+      icon: Trash2,
+      color: b001Fill > 80 ? 'var(--accent-red)' : b001Fill > 50 ? 'var(--accent-orange)' : 'var(--accent-green)',
+      delta: b001Fill > 80 ? 'Critical Level' : 'Live Sensor',
+      deltaUp: b001Fill <= 80,
+    },
+    {
+      title: 'Kolkata Temp',
+      value: `${weather.temp}°C`,
+      icon: Thermometer,
+      color: 'var(--accent-orange)',
+      delta: weather.tempDelta,
+      deltaUp: weather.tempDeltaUp,
+    },
+    {
+      title: 'Wind Speed',
+      value: `${weather.wind} km/h`,
+      icon: Wind,
+      color: 'var(--accent-cyan)',
+      delta: 'Kolkata Live',
+      deltaUp: true,
+    },
+  ];
 
   if (authLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#0f172a', color: '#fff' }}>Loading...</div>;
 
@@ -1100,30 +1517,22 @@ function App() {
 
   return (
     <div className="dashboard-container">
-      <header>
+      <header className="app-header">
         <div className="logo">NexaCity</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="header-controls">
           {/* Tab Switcher */}
-          <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: 10, padding: 3, border: '1px solid var(--bg-highlight)' }}>
+          <div className="tab-switcher">
             <button 
               onClick={() => setActiveTab('dashboard')}
-              style={{ 
-                padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: activeTab === 'dashboard' ? 'var(--accent-blue)' : 'transparent',
-                color: activeTab === 'dashboard' ? '#fff' : 'var(--text-secondary)',
-                fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
-              }}
+              className={`tab-button ${activeTab === 'dashboard' ? 'is-active' : ''}`}
+              style={{ '--tab-accent': 'var(--accent-blue)' }}
             >
               Dashboard
             </button>
             <button 
               onClick={() => setActiveTab('analytics')}
-              style={{ 
-                padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: activeTab === 'analytics' ? 'var(--accent-cyan)' : 'transparent',
-                color: activeTab === 'analytics' ? '#fff' : 'var(--text-secondary)',
-                fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
-              }}
+              className={`tab-button ${activeTab === 'analytics' ? 'is-active' : ''}`}
+              style={{ '--tab-accent': 'var(--accent-cyan)' }}
             >
               Analytics
             </button>
@@ -1131,26 +1540,24 @@ function App() {
               <>
                 <button 
                   onClick={() => setActiveTab('traffic')}
-                  style={{ 
-                    padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: activeTab === 'traffic' ? '#f87171' : 'transparent',
-                    color: activeTab === 'traffic' ? '#fff' : 'var(--text-secondary)',
-                    fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s'
-                  }}
+                  className={`tab-button ${activeTab === 'traffic' ? 'is-active' : ''}`}
+                  style={{ '--tab-accent': 'var(--accent-red)' }}
                 >
-                  🚦 Traffic Control
+                  Traffic Control
+                </button>
+                <button 
+                  onClick={() => setActiveTab('waste')}
+                  className={`tab-button ${activeTab === 'waste' ? 'is-active' : ''}`}
+                  style={{ '--tab-accent': 'var(--accent-orange)' }}
+                >
+                  Waste Routing
                 </button>
                 <button 
                   onClick={() => setActiveTab('ai')}
-                  style={{ 
-                    padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: activeTab === 'ai' ? '#a78bfa' : 'transparent',
-                    color: activeTab === 'ai' ? '#fff' : 'var(--text-secondary)',
-                    fontSize: '0.72rem', fontWeight: 700, transition: 'all 0.2s',
-                    marginLeft: 4
-                  }}
+                  className={`tab-button ${activeTab === 'ai' ? 'is-active' : ''}`}
+                  style={{ '--tab-accent': 'var(--accent-purple)' }}
                 >
-                  🧠 AI Agent
+                  AI Agent
                 </button>
               </>
             )}
@@ -1177,15 +1584,11 @@ function App() {
       </header>
 
       {/* Timestamp */}
-      <div style={{ 
-        display: 'flex', alignItems: 'center', gap: 5, 
-        fontSize: '0.72rem', color: 'var(--text-muted)',
-        marginTop: -8, 
-      }}>
+      <div className="dashboard-meta">
         <Clock size={11} />
         <span>Updated {lastUpdate.toLocaleTimeString()}</span>
-        <span style={{ marginLeft: 8, color: 'var(--accent-cyan)', fontWeight: 600 }}>
-          • {pipelineStats.messagesProcessed} msgs processed
+        <span className="meta-accent">
+          - {pipelineStats.messagesProcessed} msgs processed
         </span>
       </div>
 
@@ -1193,47 +1596,16 @@ function App() {
       {activeTab === 'dashboard' && (
         <>
           <section className="grid-stats">
-            <StatCard 
-              title="Surface Pressure" 
-              value={`${weather.pressure} hPa`} 
-              icon={Activity} 
-              color="var(--accent-blue)" 
-              delta="Kolkata Live"
-              deltaUp={true}
-            />
-            <StatCard 
-              title="Kolkata Temp" 
-              value={`${weather.temp}°C`} 
-              icon={Thermometer} 
-              color="var(--accent-orange)" 
-              delta={weather.tempDelta}
-              deltaUp={weather.tempDeltaUp}
-            />
-            <StatCard 
-              title="Wind Speed" 
-              value={`${weather.wind} km/h`} 
-              icon={Wind} 
-              color="var(--accent-cyan)"
-              delta="Kolkata Live"
-              deltaUp={true}
-            />
-            <StatCard 
-              title="Precipitation" 
-              value={`${weather.precip} mm`} 
-              icon={Droplets} 
-              color="var(--accent-blue)" 
-              delta="Current Rain"
-              deltaUp={weather.precip === 0}
-            />
+            {dashboardStats.map((stat) => (
+              <StatCard key={stat.title} {...stat} />
+            ))}
           </section>
 
           <main className="main-content">
             <div className="card" id="temperature-chart">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3>📈 24h Temperature Forecast</h3>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', background: 'var(--bg-highlight)', padding: '3px 8px', borderRadius: 6 }}>
-                  Live
-                </div>
+              <div className="card-header">
+                <h3>24h Temperature Forecast</h3>
+                <div className="card-tag">Live</div>
               </div>
               <div style={{ height: '250px' }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -1259,19 +1631,19 @@ function App() {
             </div>
 
             {/* Split Notification Areas: Traffic and Waste */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+            <div className="dashboard-feed-grid">
               {/* Traffic Feed (Fast/Live) */}
               <div className="card" id="traffic-feed">
-                <h3 style={{ marginBottom: '1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Truck size={16} color="var(--accent-blue)" />
-                  Live Traffic Tracker
-                  <span style={{ fontSize: '0.6rem', color: 'var(--accent-green)', fontWeight: 500 }}>Live Feed</span>
-                </h3>
-                <div className="feed-container" style={{ maxHeight: 250 }}>
+                <div className="feed-header">
+                  <div className="feed-title">
+                    <Truck size={16} color="var(--accent-blue)" />
+                    <span>Live Traffic Tracker</span>
+                  </div>
+                  <span className="feed-tag is-live">Live Feed</span>
+                </div>
+                <div className="feed-container is-compact">
                   {trafficLogs.length === 0 ? (
-                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                      Waiting for car detection...
-                    </div>
+                    <div className="empty-state">Waiting for car detection...</div>
                   ) : (
                     trafficLogs.map(log => (
                       <div key={log.id} className="feed-item">
@@ -1288,20 +1660,48 @@ function App() {
 
               {/* Waste Feed (Slow/30s Resolution) */}
               <div className="card" id="waste-feed">
-                <h3 style={{ marginBottom: '1rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Trash2 size={16} color="var(--accent-orange)" />
-                  Bin Status Log
-                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 500 }}>System Healthy</span>
-                </h3>
-                <div className="feed-container" style={{ maxHeight: 250 }}>
+                <div className="feed-header">
+                  <div className="feed-title">
+                    <Trash2 size={16} color="var(--accent-orange)" />
+                    <span>Bin Status Log</span>
+                  </div>
+                  <span className="feed-tag">System Healthy</span>
+                </div>
+                <div className="feed-container is-compact">
                   {wasteLogs.length === 0 ? (
-                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                      Awaiting status check...
-                    </div>
+                    <div className="empty-state">Awaiting status check...</div>
                   ) : (
                     wasteLogs.map(log => (
                       <div key={log.id} className="feed-item">
                         <div className="feed-icon" style={{ backgroundColor: '#fb923c18', color: '#fb923c' }}>{log.icon}</div>
+                        <div className="feed-content">
+                          <h4>{log.msg}</h4>
+                          <p>{log.time}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Water Feed (Live) */}
+              <div className="card" id="water-feed">
+                <div className="feed-header">
+                  <div className="feed-title">
+                    <Droplets size={16} color="var(--accent-cyan)" />
+                    <span>Water Monitoring Log</span>
+                  </div>
+                  <span className="feed-tag" style={{ background: isFloodAlert ? 'var(--accent-red)' : 'var(--accent-cyan)15', color: isFloodAlert ? '#fff' : 'var(--accent-cyan)' }}>
+                    {isFloodAlert ? 'FLOOD ALERT' : 'Tide Normal'}
+                  </span>
+                </div>
+                <div className="feed-container is-compact">
+                  {waterLogs.length === 0 ? (
+                    <div className="empty-state">Waiting for tide data...</div>
+                  ) : (
+                    waterLogs.map(log => (
+                      <div key={log.id} className="feed-item">
+                        <div className="feed-icon" style={{ backgroundColor: 'var(--accent-cyan)15', color: 'var(--accent-cyan)' }}>{log.icon}</div>
                         <div className="feed-content">
                           <h4>{log.msg}</h4>
                           <p>{log.time}</p>
@@ -1316,18 +1716,15 @@ function App() {
 
           {/* Emergency Alert Banner */}
           {activeEmergencies.length > 0 && (
-            <div className="card" style={{ borderColor: 'rgba(248, 113, 113, 0.3)', background: 'rgba(248, 113, 113, 0.05)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div className="card alert-card">
+              <div className="alert-header">
                 <ShieldAlert size={18} color="#f87171" />
                 <h3 style={{ fontSize: '0.95rem', color: '#f87171' }}>Active Emergencies ({activeEmergencies.length})</h3>
               </div>
               {activeEmergencies.map((e, i) => (
-                <div key={i} style={{ 
-                  padding: '8px 12px', background: 'var(--bg-highlight)', borderRadius: 10, marginBottom: 6,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem'
-                }}>
+                <div key={i} className="alert-item">
                   <span>🚨 {e.type} — {e.severity}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{new Date(e.timestamp).toLocaleTimeString()}</span>
+                  <span className="alert-time">{new Date(e.timestamp).toLocaleTimeString()}</span>
                 </div>
               ))}
             </div>
@@ -1335,7 +1732,7 @@ function App() {
 
           {/* AI Insight - now includes dynamic data */}
           {role === 'admin' && (
-            <div className="card glass" id="ai-insight">
+            <div className="card glass insight-card" id="ai-insight">
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <div style={{
                   width: 32, height: 32, minWidth: 32,
@@ -1348,10 +1745,7 @@ function App() {
                   <TrendingUp color="#22d3ee" size={16} />
                 </div>
                 <div>
-                  <p style={{ 
-                    fontSize: '0.68rem', fontWeight: 700, color: '#22d3ee',
-                    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
-                  }}>
+                  <p className="insight-label">
                     AI Insight (Admin only)
                   </p>
                   <p style={{ fontSize: '0.85rem', lineHeight: 1.55 }}>
@@ -1376,6 +1770,7 @@ function App() {
           wasteStatus={wasteStatus}
           pipelineStats={pipelineStats}
           networkMode={networkMode}
+          trafficWindow={trafficWindow}
         />
       )}
 
@@ -1388,6 +1783,11 @@ function App() {
           totalVehicleCount={totalVehicleCount}
           heavyTrafficActive={heavyTrafficActive}
         />
+      )}
+
+      {/* ═══ TAB: SMART WASTE ROUTING (Admin Only) ═══ */}
+      {activeTab === 'waste' && role === 'admin' && (
+        <WasteRoutingService />
       )}
 
       {/* ═══ TAB: AI AGENT (Admin Only) ═══ */}
